@@ -1,0 +1,37 @@
+# Local agent and editor state
+/.agents/
+/.codex
+/.codex/
+/.idea/
+/.vscode/
+
+# Python
+__pycache__/
+*.py[cod]
+/.ruff_cache/
+/.venv/
+/venv/
+
+# Meson and Flatpak
+/build-dir/
+/build-*/
+/_build*/
+/flatpak-build/
+/.flatpak-builder/
+/repo/
+/*.flatpak
+
+# Local source material; see DATA_SOURCES.md
+/Freddy's Blossom Walk.kmz
+/Maroon Plaque Location and Text List 2025.docx
+
+# Local UI review captures
+/Pasted image*.png
+/ui-*.png
+!/data/screenshots/*.png
+
+# Profiling and crash output
+/*.syscap
+/perf.data*
+/core
+/core.*

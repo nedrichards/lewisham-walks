@@ -1,0 +1,328 @@
+import unittest
+from unittest import mock
+
+
+def _load_gtk():
+    try:
+        import gi
+
+        if not hasattr(gi, "require_version"):
+            raise ImportError("PyGObject is not available")
+        gi.require_version("Adw", "1")
+        gi.require_version("Gtk", "4.0")
+        from gi.repository import Adw, Gdk, Gio, GLib, Gtk
+
+        initialized = Gtk.init_check()
+        if isinstance(initialized, tuple):
+            initialized = initialized[0]
+        if not initialized:
+            raise RuntimeError("GTK could not initialize; run these tests inside the GNOME SDK with a display socket.")
+        if Gdk.Display.get_default() is None:
+            raise RuntimeError("No display is available; run these tests inside the GNOME SDK with a display socket.")
+
+        return Adw, Gio, GLib, Gtk, None
+    except Exception as error:
+        return None, None, None, None, error
+
+
+Adw, Gio, GLib, Gtk, GTK_IMPORT_ERROR = _load_gtk()
+
+if Adw is not None:
+    from lewisham_walks.main import LewishamWalksApp
+    from lewisham_walks.models import Coordinate, Discovery, DiscoveryKind
+    from lewisham_walks.ui.discovery_browser_window import DiscoveryBrowserWindow
+    from lewisham_walks.ui.layout import (
+        COMPACT_BREAKPOINT,
+        CONTROLS_WIDE_MIN_WIDTH,
+        MAP_WIDE_MIN_WIDTH,
+        SIDEBAR_COMPACT_WIDTH_FRACTION,
+        SIDEBAR_WIDE_WIDTH_FRACTION,
+        WIDE_LAYOUT_GUTTER,
+    )
+    from lewisham_walks.ui.main_window import MainWindow
+
+
+class FakeSettings:
+    def __init__(self) -> None:
+        self._doubles = {"walking-speed-kmh": 4.8}
+        self._string_lists = {"seen-story-ids": []}
+
+    def get_string(self, key: str) -> str:
+        return ""
+
+    def set_string(self, key: str, value: str) -> None:
+        pass
+
+    def get_double(self, key: str) -> float:
+        return self._doubles.get(key, 0.0)
+
+    def set_double(self, key: str, value: float) -> None:
+        self._doubles[key] = value
+
+    def get_strv(self, key: str) -> list[str]:
+        return list(self._string_lists.get(key, []))
+
+    def set_strv(self, key: str, value: list[str]) -> None:
+        self._string_lists[key] = list(value)
+
+
+@unittest.skipUnless(Adw is not None, f"GTK runtime unavailable: {GTK_IMPORT_ERROR}")
+class MainWindowResponsiveTests(unittest.TestCase):
+    def setUp(self) -> None:
+        Adw.init()
+        self._settings_patcher = mock.patch("lewisham_walks.ui.main_window.Gio.Settings.new", return_value=FakeSettings())
+        self._settings_patcher.start()
+        self.addCleanup(self._settings_patcher.stop)
+        self.window = MainWindow(None)
+        self.addCleanup(self.window.destroy)
+
+    def _flush(self) -> None:
+        context = GLib.MainContext.default()
+        for _ in range(8):
+            while context.pending():
+                context.iteration(False)
+
+    def _size_request(self, widget) -> tuple[int, int]:
+        minimum_width, minimum_height = widget.get_size_request()
+        return minimum_width, minimum_height
+
+    def test_main_window_switches_between_wide_and_compact_layouts(self) -> None:
+        self.window.present()
+        self.window._apply_responsive_layout(1440, 720)
+        self._flush()
+
+        self.assertIs(self.window.toast_overlay.get_child(), self.window.split_view)
+        self.assertIs(self.window.split_view.get_sidebar(), self.window.controls_scroller)
+        self.assertIs(self.window.split_view.get_content(), self.window.map_pane)
+        self.assertFalse(self.window.split_view.get_collapsed())
+        self.assertTrue(self.window.split_view.get_pin_sidebar())
+        self.assertTrue(self.window.split_view.get_show_sidebar())
+        self.assertEqual(self._size_request(self.window.controls_scroller), (-1, -1))
+        self.assertTrue(self.window.controls_scroller.get_vexpand())
+
+        self.window._apply_responsive_layout(760, 620)
+        self._flush()
+
+        self.assertTrue(self.window.split_view.get_collapsed())
+        self.assertFalse(self.window.split_view.get_pin_sidebar())
+        self.assertFalse(self.window.split_view.get_show_sidebar())
+        self.assertFalse(self.window.sidebar_button.get_active())
+        self.assertEqual(self.window.split_view.get_min_sidebar_width(), self.window.MAP_COMPACT_MIN_WIDTH)
+        self.assertAlmostEqual(self.window.split_view.get_sidebar_width_fraction(), SIDEBAR_COMPACT_WIDTH_FRACTION)
+        self.assertIs(self.window.split_view.get_sidebar(), self.window.controls_scroller)
+        self.assertIs(self.window.split_view.get_content(), self.window.map_pane)
+        self.assertTrue(self.window.controls_scroller.has_css_class("view"))
+        self.assertTrue(self.window.controls_content.has_css_class("view"))
+        self.assertEqual(self._size_request(self.window.controls_scroller), (-1, -1))
+        self.assertTrue(self.window.controls_scroller.get_vexpand())
+        self.assertEqual(self.window.controls_stack.get_visible_child_name(), "planner")
+        self.assertIs(self.window.controls_stack.get_visible_child(), self.window.planner_section)
+        self.assertIsNotNone(self.window.postcode_entry.get_parent())
+        self.assertIsNotNone(self.window.generate_button.get_parent())
+
+    def test_map_picker_temporarily_hides_the_compact_sidebar(self) -> None:
+        self.window._apply_responsive_layout(390, 780)
+        self.window.split_view.set_show_sidebar(True)
+
+        self.window._begin_pick_start(None)
+        self.assertFalse(self.window.split_view.get_show_sidebar())
+
+        self.window._on_map_location_selected(Coordinate(51.462, -0.010))
+        self.assertTrue(self.window.split_view.get_show_sidebar())
+        self.assertTrue(self.window.postcode_entry.get_text().startswith("Map point "))
+
+    def test_native_breakpoint_enters_compact_mode_on_initial_narrow_allocation(self) -> None:
+        self.window.set_default_size(390, 780)
+        self.window.present()
+        self._flush()
+
+        self.assertIs(self.window.get_current_breakpoint(), self.window.compact_breakpoint)
+        self.assertTrue(self.window.split_view.get_collapsed())
+        self.assertFalse(self.window.split_view.get_pin_sidebar())
+        self.assertFalse(self.window.split_view.get_show_sidebar())
+        self.assertEqual(self.window.split_view.get_min_sidebar_width(), self.window.MAP_COMPACT_MIN_WIDTH)
+
+    def test_sidebar_can_be_hidden_and_restored_at_narrow_widths(self) -> None:
+        self.window.present()
+        self.window._apply_responsive_layout(760, 620)
+        self._flush()
+
+        self.assertFalse(self.window.split_view.get_show_sidebar())
+        self.assertFalse(self.window.sidebar_button.get_active())
+        self.assertEqual(self.window.sidebar_button.get_icon_name(), "sidebar-show-symbolic")
+
+        self.window.sidebar_button.set_active(True)
+        self._flush()
+
+        self.assertTrue(self.window.split_view.get_show_sidebar())
+        self.assertTrue(self.window.sidebar_button.get_active())
+        self.assertEqual(self.window.sidebar_button.get_icon_name(), "sidebar-show-symbolic")
+
+        self.window.sidebar_button.set_active(False)
+        self._flush()
+
+        self.assertFalse(self.window.split_view.get_show_sidebar())
+        self.assertFalse(self.window.sidebar_button.get_active())
+
+    def test_desktop_sidebar_toggle_creates_a_persistent_map_focus_mode(self) -> None:
+        self.window._apply_responsive_layout(1440, 720)
+        self.window.sidebar_button.set_active(False)
+        self._flush()
+
+        self.assertFalse(self.window.split_view.get_show_sidebar())
+
+        self.window._apply_responsive_layout(760, 720)
+        self.window._apply_responsive_layout(1440, 720)
+        self._flush()
+
+        self.assertFalse(self.window.split_view.get_show_sidebar())
+        self.assertFalse(self.window.sidebar_button.get_active())
+        self.assertEqual(self.window.sidebar_button.get_tooltip_text(), "Show walk planner")
+
+    def test_location_action_icons_exist_in_the_runtime_theme(self) -> None:
+        icon_theme = Gtk.IconTheme.get_for_display(self.window.get_display())
+
+        expected_icons = {
+            self.window.sidebar_button: "sidebar-show-symbolic",
+            self.window.current_location_button: "find-location-symbolic",
+            self.window.pick_start_button: "mark-location-symbolic",
+            self.window.pick_end_button: "mark-location-symbolic",
+        }
+        for button, icon_name in expected_icons.items():
+            with self.subTest(icon_name=icon_name):
+                self.assertEqual(button.get_icon_name(), icon_name)
+                self.assertTrue(icon_theme.has_icon(icon_name))
+
+    def test_plan_and_results_are_full_height_pages_at_every_width(self) -> None:
+        for width in (1440, 390):
+            with self.subTest(width=width):
+                self.window._apply_responsive_layout(width, 720)
+                self.window._show_results_section()
+                self._flush()
+
+                self.assertEqual(self.window.controls_stack.get_visible_child_name(), "results")
+                self.assertIs(self.window.controls_stack.get_visible_child(), self.window.results_section)
+                self.assertTrue(self.window.split_view.get_show_sidebar())
+                self.assertEqual(self._size_request(self.window.controls_scroller), (-1, -1))
+
+                self.window._show_planner_section()
+                self._flush()
+
+                self.assertEqual(self.window.controls_stack.get_visible_child_name(), "planner")
+                self.assertIs(self.window.controls_stack.get_visible_child(), self.window.planner_section)
+
+    def test_compact_layout_releases_the_desktop_minimum_width(self) -> None:
+        self.window._apply_responsive_layout(390, 780)
+        self._flush()
+
+        minimum, _natural, _minimum_baseline, _natural_baseline = self.window.measure(
+            Gtk.Orientation.HORIZONTAL,
+            -1,
+        )
+
+        self.assertLessEqual(minimum, 390)
+
+    def test_wide_layout_can_cross_its_own_compact_breakpoint(self) -> None:
+        self.window._apply_responsive_layout(1440, 780)
+        self._flush()
+
+        minimum, _natural, _minimum_baseline, _natural_baseline = self.window.measure(
+            Gtk.Orientation.HORIZONTAL,
+            -1,
+        )
+
+        self.assertLess(minimum, COMPACT_BREAKPOINT)
+
+    def test_wide_layout_only_applies_when_controls_and_map_fit(self) -> None:
+        self.assertEqual(COMPACT_BREAKPOINT, CONTROLS_WIDE_MIN_WIDTH + MAP_WIDE_MIN_WIDTH + WIDE_LAYOUT_GUTTER)
+
+        self.window._apply_responsive_layout(900, 720)
+        self._flush()
+
+        self.assertTrue(self.window.split_view.get_collapsed())
+
+        self.window._apply_responsive_layout(COMPACT_BREAKPOINT - 1, 720)
+        self._flush()
+
+        self.assertTrue(self.window.split_view.get_collapsed())
+
+        self.window._apply_responsive_layout(COMPACT_BREAKPOINT, 720)
+        self._flush()
+
+        self.assertFalse(self.window.split_view.get_collapsed())
+        self.assertGreaterEqual(self.window.split_view.get_min_sidebar_width(), CONTROLS_WIDE_MIN_WIDTH)
+        self.assertAlmostEqual(self.window.split_view.get_sidebar_width_fraction(), SIDEBAR_WIDE_WIDTH_FRACTION)
+
+    def test_auxiliary_windows_are_reused(self) -> None:
+        with mock.patch("lewisham_walks.ui.main_window.DiscoveryBrowserWindow") as browser_type:
+            self.window._show_discovery_browser(None)
+            self.window._show_discovery_browser(None)
+            browser_type.assert_called_once_with(
+                self.window,
+                [*self.window.all_discoveries, *self.window.all_blossom_points],
+            )
+            self.assertEqual(2, browser_type.return_value.present.call_count)
+
+        with mock.patch("lewisham_walks.ui.main_window.PreferencesWindow") as preferences_type:
+            self.window._show_preferences(None)
+            self.window._show_preferences(None)
+            preferences_type.assert_called_once_with(self.window)
+            self.assertEqual(2, preferences_type.return_value.present.call_count)
+
+
+@unittest.skipUnless(Adw is not None, f"GTK runtime unavailable: {GTK_IMPORT_ERROR}")
+class ApplicationWindowTests(unittest.TestCase):
+    def test_repeated_activation_reuses_the_primary_window(self) -> None:
+        app = LewishamWalksApp("test")
+        self.addCleanup(app.quit)
+
+        with (
+            mock.patch.object(app, "_load_styles"),
+            mock.patch("lewisham_walks.main.MainWindow") as window_type,
+        ):
+            app.do_activate()
+            app.do_activate()
+
+        window_type.assert_called_once_with(app)
+        self.assertEqual(2, window_type.return_value.present.call_count)
+        self.assertFalse(app.get_flags() & Gio.ApplicationFlags.NON_UNIQUE)
+
+
+@unittest.skipUnless(Adw is not None, f"GTK runtime unavailable: {GTK_IMPORT_ERROR}")
+class PlaqueBrowserResponsiveTests(unittest.TestCase):
+    def setUp(self) -> None:
+        Adw.init()
+        self.parent = Adw.Window()
+        self.addCleanup(self.parent.destroy)
+        self.window = DiscoveryBrowserWindow(self.parent, [])
+        self.addCleanup(self.window.destroy)
+
+    def test_browser_switches_to_stacked_layout_on_narrow_widths(self) -> None:
+        self.window._apply_responsive_layout(900)
+        self.assertEqual(self.window.root.get_orientation(), Gtk.Orientation.HORIZONTAL)
+        self.assertEqual(self.window.left.get_size_request(), (324, -1))
+
+        self.window._apply_responsive_layout(720)
+        self.assertEqual(self.window.root.get_orientation(), Gtk.Orientation.VERTICAL)
+        self.assertEqual(self.window.left.get_size_request(), (-1, 220))
+
+    def test_browser_presents_different_discovery_kinds(self) -> None:
+        plaque = Discovery(
+            "plaque", "A plaque", "A local plaque", Coordinate(51.46, -0.01),
+            source_name="Open Plaques", external_id="1", attributes={"colour": "brown"},
+        )
+        blossom = Discovery(
+            "blossom", "A tree", "A blossom tree", Coordinate(51.461, -0.011),
+            kind=DiscoveryKind.BLOSSOM, collection="freddys-blossom-walk",
+            source_name="Freddy's Blossom Walk", attributes={"species": "Prunus"},
+        )
+        browser = DiscoveryBrowserWindow(self.parent, [plaque, blossom])
+        self.addCleanup(browser.destroy)
+
+        self.assertEqual({DiscoveryKind.PLAQUE, DiscoveryKind.BLOSSOM}, {item.kind for item in browser._all_discoveries})
+        browser._show_discovery(blossom)
+        self.assertEqual("A tree", browser.details_group.get_title())
+
+
+if __name__ == "__main__":
+    unittest.main()

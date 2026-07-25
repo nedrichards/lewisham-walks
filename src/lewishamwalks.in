@@ -1,0 +1,16 @@
+#!@PYTHON@
+
+import os
+import signal
+import sys
+
+VERSION = '@VERSION@'
+pkgdatadir = '@pkgdatadir@'
+
+sys.path.insert(1, pkgdatadir)
+signal.signal(signal.SIGINT, signal.SIG_DFL)
+
+if __name__ == '__main__':
+    from lewisham_walks.main import main
+
+    sys.exit(main(VERSION))

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Lewisham Walks
+Comment=Find local stories and turn them into walks
+Exec=@APP_EXEC@
+Icon=@APP_ICON@
+Terminal=false
+Type=Application
+Categories=GNOME;GTK;Utility;Maps;
+StartupNotify=true

@@ -1,0 +1,18 @@
+{
+  "exclude": [
+    "57586"
+  ],
+  "exclude_reasons": {
+    "57586": "Real Open Plaques record, but not a Lewisham brown plaque / target scheme record."
+  },
+  "records": {
+    "11751": {
+      "curation_status": "in_scope",
+      "curation_note": "Lewisham war memorial plaque candidate."
+    },
+    "11754": {
+      "curation_status": "in_scope",
+      "curation_note": "Lewisham war memorial plaque candidate."
+    }
+  }
+}

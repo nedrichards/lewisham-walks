@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.nedrichards.lewishamwalks</id>
+  <name>Lewisham Walks</name>
+  <summary>Find local stories and turn them into walks</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <developer id="com.nedrichards">
+    <name>Nick Richards</name>
+  </developer>
+  <url type="homepage">https://github.com/nedrichards/lewisham-walks</url>
+  <url type="bugtracker">https://github.com/nedrichards/lewisham-walks/issues</url>
+  <url type="vcs-browser">https://github.com/nedrichards/lewisham-walks</url>
+  <content_rating type="oars-1.1" />
+  <description>
+    <p>Discover overlooked people and places around Lewisham, then make a walking route that fits the time you have.</p>
+    <p>Lewisham Walks combines local plaque collections, Open Plaques and OpenStreetMap data. Choose a theme, add an optional cafe or pub, explore every stop on the map, and export the result as GPX.</p>
+  </description>
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/nedrichards/lewisham-walks/main/data/screenshots/lewisham-walks-desktop.png</image>
+      <caption>Explore nearby stories and plan a walk on the map</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/nedrichards/lewisham-walks/main/data/screenshots/lewisham-walks-mobile.png</image>
+      <caption>Review a generated walk at a narrow window size</caption>
+    </screenshot>
+  </screenshots>
+  <launchable type="desktop-id">com.nedrichards.lewishamwalks.desktop</launchable>
+  <releases>
+    <release version="0.1.0" date="2026-07-25">
+      <description>
+        <p>Initial public development checkpoint.</p>
+      </description>
+    </release>
+  </releases>
+</component>

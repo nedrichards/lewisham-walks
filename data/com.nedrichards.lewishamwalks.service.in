@@ -1,0 +1,3 @@
+[D-BUS Service]
+Name=com.nedrichards.lewishamwalks
+Exec=@bindir@/com.nedrichards.lewishamwalks --gapplication-service

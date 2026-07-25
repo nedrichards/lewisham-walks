@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="com.nedrichards.lewishamwalks" path="/com/nedrichards/lewishamwalks/">
+    <key name="walking-speed-kmh" type="d">
+      <default>4.5</default>
+      <summary>Walking speed</summary>
+      <description>Estimated walking speed in kilometres per hour.</description>
+    </key>
+    <key name="seen-story-ids" type="as">
+      <default>[]</default>
+      <summary>Stories marked as discovered</summary>
+      <description>Local identifiers excluded from new walks when other stories are available.</description>
+    </key>
+  </schema>
+</schemalist>

@@ -1,0 +1,22 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#deddda"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
+      <feOffset dy="3"/>
+      <feComponentTransfer><feFuncA type="linear" slope=".28"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect x="10" y="8" width="108" height="108" rx="25" fill="#613583" filter="url(#shadow)"/>
+  <path d="M24 31l26-9 28 9 26-9v73l-26 9-28-9-26 9z" fill="url(#paper)"/>
+  <path d="M50 22v73M78 31v73" fill="none" stroke="#c0bfbc" stroke-width="2"/>
+  <path d="M25 71c14-15 22-18 34-12 14 8 12 21 24 18 8-2 12-13 19-22" fill="none" stroke="#1c71d8" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="28" cy="69" r="8" fill="#813d5c" stroke="#fff" stroke-width="3"/>
+  <circle cx="101" cy="52" r="8" fill="#813d5c" stroke="#fff" stroke-width="3"/>
+  <circle cx="64" cy="63" r="5" fill="#f6d32d" stroke="#fff" stroke-width="3"/>
+  <path d="M24 31l26-9 28 9 26-9v73l-26 9-28-9-26 9z" fill="none" stroke="#fff" stroke-opacity=".7" stroke-width="2" stroke-linejoin="round"/>
+</svg>
