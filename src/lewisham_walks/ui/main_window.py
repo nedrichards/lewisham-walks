@@ -12,7 +12,7 @@ gi.require_version("Gtk", "4.0")
 
 from gi.repository import Adw, Gio, GLib, Gtk
 
-from .. import APP_ID, runtime_app_id
+from .. import APP_ID
 from ..discovery import (
     THEME_LABELS,
     discoveries_for_theme,
@@ -598,7 +598,9 @@ class MainWindow(Adw.ApplicationWindow):
             application = self.get_application()
             dialog = Adw.AboutDialog.new()
             dialog.set_application_name("Lewisham Walks")
-            dialog.set_application_icon(runtime_app_id())
+            # Flatpak may rename the exported development icon, but the icon
+            # theme cache inside the app still indexes the canonical name.
+            dialog.set_application_icon(APP_ID)
             dialog.set_developer_name("Nick Richards")
             dialog.set_version(getattr(application, "version", "0.1.0"))
             dialog.set_comments("Find overlooked local stories and turn them into walks around Lewisham.")

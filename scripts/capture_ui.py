@@ -27,16 +27,16 @@ def main() -> int:
     if len(sys.argv) not in (2, 4, 5):
         raise SystemExit(
             "usage: capture_ui.py OUTPUT.png [WIDTH HEIGHT "
-            "[plan|results|route|directions|map|stories|shortcuts]]"
+            "[plan|results|route|directions|map|stories|shortcuts|about]]"
         )
     output = Path(sys.argv[1]).resolve()
     width, height = (int(sys.argv[2]), int(sys.argv[3])) if len(sys.argv) == 4 else (1440, 820)
     if len(sys.argv) == 5:
         width, height = int(sys.argv[2]), int(sys.argv[3])
     page = sys.argv[4] if len(sys.argv) == 5 else "plan"
-    if page not in {"plan", "results", "route", "directions", "map", "stories", "shortcuts"}:
+    if page not in {"plan", "results", "route", "directions", "map", "stories", "shortcuts", "about"}:
         raise SystemExit(
-            "page must be 'plan', 'results', 'route', 'directions', 'map', 'stories' or 'shortcuts'"
+            "page must be 'plan', 'results', 'route', 'directions', 'map', 'stories', 'shortcuts' or 'about'"
         )
     Adw.init()
     settings = Gtk.Settings.get_default()
@@ -75,9 +75,14 @@ def main() -> int:
             window.present()
             window._show_shortcuts(None)
             target_window = window._shortcuts_window
+        elif page == "about":
+            window.present()
+            window._show_about(None)
     target_window.set_default_size(width, height)
     target_window.present()
     loop = GLib.MainLoop.new(None, False)
+    capture_attempts = 0
+    capture_errors: list[Exception] = []
 
     def settle_layout() -> bool:
         if page != "stories":
@@ -87,42 +92,56 @@ def main() -> int:
         return GLib.SOURCE_REMOVE
 
     def capture() -> bool:
-        width = target_window.get_width()
-        height = target_window.get_height()
-        content = (
-            target_window
-            if page == "shortcuts"
-            else target_window.get_content()
-            if hasattr(target_window, "get_content")
-            else target_window.get_child()
-        )
-        if content is None:
-            raise RuntimeError("Window did not expose any content to capture")
-        paintable = Gtk.WidgetPaintable.new(content)
-        snapshot = Gtk.Snapshot.new()
-        paintable.snapshot(snapshot, width, height)
-        node = snapshot.to_node()
-        surface = target_window.get_surface()
-        if node is None or surface is None:
-            raise RuntimeError("Window did not produce a render node")
-        renderer = Gsk.Renderer.new_for_surface(surface)
-        bounds = Graphene.Rect().init(0, 0, width, height)
-        texture = renderer.render_texture(node, bounds)
-        if not isinstance(texture, Gdk.Texture) or not texture.save_to_png(str(output)):
-            raise RuntimeError("Could not save the rendered window")
-        renderer.unrealize()
+        nonlocal capture_attempts
+        try:
+            width = target_window.get_width()
+            height = target_window.get_height()
+            content = (
+                target_window
+                if page in {"shortcuts", "about"}
+                else target_window.get_content()
+                if hasattr(target_window, "get_content")
+                else target_window.get_child()
+            )
+            if content is None:
+                raise RuntimeError("Window did not expose any content to capture")
+            paintable = Gtk.WidgetPaintable.new(content)
+            snapshot = Gtk.Snapshot.new()
+            paintable.snapshot(snapshot, width, height)
+            node = snapshot.to_node()
+            surface = target_window.get_surface()
+            if node is None or surface is None:
+                capture_attempts += 1
+                if capture_attempts < 3:
+                    GLib.timeout_add(500, capture)
+                    return GLib.SOURCE_REMOVE
+                raise RuntimeError("Window did not produce a render node")
+            renderer = Gsk.Renderer.new_for_surface(surface)
+            bounds = Graphene.Rect().init(0, 0, width, height)
+            texture = renderer.render_texture(node, bounds)
+            if not isinstance(texture, Gdk.Texture) or not texture.save_to_png(str(output)):
+                raise RuntimeError("Could not save the rendered window")
+            renderer.unrealize()
+        except Exception as error:
+            capture_errors.append(error)
         GLib.idle_add(shutdown)
         return GLib.SOURCE_REMOVE
 
     def shutdown() -> bool:
-        # This helper is a short-lived process. Let process teardown release the
-        # transient and its parent together so GSK cannot outlive either surface.
+        if page == "about" and window._about_dialog is not None:
+            window._about_dialog.close()
+        if target_window is not window:
+            target_window.close()
+        window.close()
+        app.quit()
         loop.quit()
         return GLib.SOURCE_REMOVE
 
     GLib.timeout_add(750, settle_layout)
     GLib.timeout_add(3000, capture)
     loop.run()
+    if capture_errors:
+        raise capture_errors[0]
     return 0
 
 

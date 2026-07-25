@@ -374,6 +374,7 @@ class MainWindowResponsiveTests(unittest.TestCase):
         about_dialog = self.window._about_dialog
         self.assertIsInstance(about_dialog, Adw.AboutDialog)
         self.assertEqual("Lewisham Walks", about_dialog.get_application_name())
+        self.assertEqual("com.nedrichards.lewishamwalks", about_dialog.get_application_icon())
         self.assertEqual("Nick Richards", about_dialog.get_developer_name())
 
         shortcuts_window.close()

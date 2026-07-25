@@ -8,6 +8,7 @@
     "rename-desktop-file": "com.nedrichards.lewishamwalks.desktop",
     "rename-appdata-file": "com.nedrichards.lewishamwalks.metainfo.xml",
     "rename-icon": "com.nedrichards.lewishamwalks",
+    "copy-icon": true,
     "finish-args": [
         "--share=network",
         "--share=ipc",
