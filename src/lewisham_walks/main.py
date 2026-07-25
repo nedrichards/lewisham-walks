@@ -40,7 +40,14 @@ class LewishamWalksApp(Adw.Application):
             .map-pin { background: #613583; color: white; min-width: 12px; min-height: 12px; padding: 3px; box-shadow: 0 1px 3px alpha(black, .35); }
             .map-pin.local { background: #813d5c; }
             .route-marker { background: #1c71d8; color: white; font-weight: bold; box-shadow: 0 1px 4px alpha(black, .4); }
-            .route-badge { background: alpha(@accent_bg_color, .14); color: @accent_color; border-radius: 999px; min-width: 28px; min-height: 28px; font-weight: bold; }
+            .results-summary { padding: 14px; }
+            .route-metrics { margin-top: 4px; }
+            .route-metric-value { font-size: 1.18em; font-weight: 700; }
+            .results-list-heading { margin: 8px 4px 2px 4px; }
+            .route-stop-row { min-height: 58px; }
+            .route-badge { background: alpha(@accent_bg_color, .14); color: @accent_color; border-radius: 999px; min-width: 28px; min-height: 28px; margin: 0 4px 0 2px; font-weight: bold; }
+            .route-detail { padding: 14px; }
+            .route-warning { background: alpha(@warning_bg_color, .14); color: @warning_color; border-radius: 10px; padding: 10px 12px; }
             """
         )
         display = Gdk.Display.get_default()

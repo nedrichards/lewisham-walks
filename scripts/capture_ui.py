@@ -14,34 +14,48 @@ gi.require_version("Gsk", "4.0")
 gi.require_version("Gtk", "4.0")
 gi.require_version("Graphene", "1.0")
 
-from gi.repository import Adw, Gdk, GLib, Graphene, Gsk, Gtk
+from gi.repository import Adw, Gdk, Gio, GLib, Graphene, Gsk, Gtk
 
 from lewisham_walks.main import LewishamWalksApp
+from lewisham_walks.models import Coordinate, RouteRequest
+from lewisham_walks.planner import RoutePlanner
 from lewisham_walks.ui.main_window import MainWindow
 
 
 def main() -> int:
     if len(sys.argv) not in (2, 4, 5):
-        raise SystemExit("usage: capture_ui.py OUTPUT.png [WIDTH HEIGHT [plan|results|map]]")
+        raise SystemExit("usage: capture_ui.py OUTPUT.png [WIDTH HEIGHT [plan|results|route|map]]")
     output = Path(sys.argv[1]).resolve()
     width, height = (int(sys.argv[2]), int(sys.argv[3])) if len(sys.argv) == 4 else (1440, 820)
     if len(sys.argv) == 5:
         width, height = int(sys.argv[2]), int(sys.argv[3])
     page = sys.argv[4] if len(sys.argv) == 5 else "plan"
-    if page not in {"plan", "results", "map"}:
-        raise SystemExit("page must be 'plan', 'results' or 'map'")
+    if page not in {"plan", "results", "route", "map"}:
+        raise SystemExit("page must be 'plan', 'results', 'route' or 'map'")
     Adw.init()
     settings = Gtk.Settings.get_default()
     if settings is not None:
         settings.set_property("gtk-enable-animations", False)
     app = LewishamWalksApp("development")
+    # UI review captures must remain isolated from an interactive app or a
+    # Builder-launched instance that owns the normal application bus name.
+    app.set_flags(app.get_flags() | Gio.ApplicationFlags.NON_UNIQUE)
     app._load_styles()
-    # A standalone window avoids taking ownership of the installed app's D-Bus
-    # name, which may already belong to an interactive instance during review.
-    window = MainWindow(None)
+    if not app.register():
+        raise RuntimeError("Could not register the capture application")
+    window = MainWindow(app)
     window.set_default_size(width, height)
     window._apply_responsive_layout(width, height)
-    window._show_controls_page("results" if page == "results" else "planner")
+    if page == "route":
+        plan = RoutePlanner(window.all_discoveries).plan(
+            RouteRequest(
+                start=Coordinate(51.462, -0.010),
+                duration_minutes=75,
+                max_discoveries=5,
+            )
+        )
+        window._render_plan(plan)
+    window._show_controls_page("results" if page in {"results", "route"} else "planner")
     window.present()
     loop = GLib.MainLoop.new(None, False)
 
@@ -69,6 +83,7 @@ def main() -> int:
             raise RuntimeError("Could not save the rendered window")
         renderer.unrealize()
         window.destroy()
+        app.quit()
         loop.quit()
         return GLib.SOURCE_REMOVE
 

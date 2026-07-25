@@ -19,7 +19,6 @@ from ..discovery import (
     display_title,
     featured_discoveries,
     source_label,
-    story_preview,
 )
 from ..export import plan_to_gpx
 from ..models import (
@@ -39,6 +38,7 @@ from ..providers.geocoding import GeocodingError, PostcodesIoGeocoder
 from ..providers.location import LocationPortalProvider
 from ..providers.routing import OpenStreetMapRoutingProvider, RoutingError
 from ..store import load_seed_blossom_discoveries, load_seed_discoveries
+from . import icons
 from .discovery_browser_window import DiscoveryBrowserWindow
 from .layout import (
     COMPACT_BREAKPOINT,
@@ -61,7 +61,7 @@ class MainWindow(Adw.ApplicationWindow):
     MAP_WIDE_MIN_HEIGHT = MAP_WIDE_MIN_HEIGHT
     MAP_COMPACT_MIN_WIDTH = MAP_COMPACT_MIN_WIDTH
     MAP_COMPACT_MIN_HEIGHT = MAP_COMPACT_MIN_HEIGHT
-    MAP_PICK_ICON = "mark-location-symbolic"
+    MAP_PICK_ICON = icons.MAP_LOCATION
     ROUTE_SOURCE_OPTIONS = [
         "A bit of everything",
         "People & creativity",
@@ -128,23 +128,23 @@ class MainWindow(Adw.ApplicationWindow):
         # sidebar-hide-symbolic counterpart; the pressed state shows whether
         # the planner is currently visible.
         self.sidebar_button = Gtk.ToggleButton.new()
-        self.sidebar_button.set_icon_name("sidebar-show-symbolic")
+        self.sidebar_button.set_icon_name(icons.SIDEBAR)
         self.sidebar_button.set_tooltip_text("Hide walk planner")
         self.sidebar_button.connect("toggled", self._toggle_sidebar)
         header.pack_start(self.sidebar_button)
         self._update_sidebar_button()
 
-        prefs_button = Gtk.Button.new_from_icon_name("emblem-system-symbolic")
+        prefs_button = Gtk.Button.new_from_icon_name(icons.PREFERENCES)
         prefs_button.set_tooltip_text("Preferences")
         prefs_button.connect("clicked", self._show_preferences)
         header.pack_end(prefs_button)
 
-        export_button = Gtk.Button.new_from_icon_name("document-save-symbolic")
+        export_button = Gtk.Button.new_from_icon_name(icons.EXPORT)
         export_button.set_tooltip_text("Export GPX")
         export_button.connect("clicked", self._export_gpx)
         header.pack_end(export_button)
 
-        data_button = Gtk.Button.new_from_icon_name("view-list-symbolic")
+        data_button = Gtk.Button.new_from_icon_name(icons.STORIES)
         data_button.set_tooltip_text("Browse local stories")
         data_button.connect("clicked", self._show_discovery_browser)
         header.pack_end(data_button)
@@ -209,7 +209,7 @@ class MainWindow(Adw.ApplicationWindow):
         self.postcode_entry.set_text("SE13 5AF")
         self.postcode_entry.connect("notify::text", self._on_start_location_text_changed)
 
-        self.current_location_button = Gtk.Button.new_from_icon_name("find-location-symbolic")
+        self.current_location_button = Gtk.Button.new_from_icon_name(icons.CURRENT_LOCATION)
         self.current_location_button.add_css_class("flat")
         self.current_location_button.set_tooltip_text("Use current location")
         self.current_location_button.connect("clicked", self._use_current_location_for_start)
@@ -274,20 +274,42 @@ class MainWindow(Adw.ApplicationWindow):
         self.generate_button.connect("clicked", self._generate_walk)
         self.plan_box.append(self.generate_button)
 
-        progress_box = Gtk.Box.new(Gtk.Orientation.HORIZONTAL, 8)
+        self.progress_box = Gtk.Box.new(Gtk.Orientation.HORIZONTAL, 8)
+        self.progress_box.set_visible(False)
         self.progress_spinner = Gtk.Spinner.new()
-        progress_box.append(self.progress_spinner)
+        self.progress_box.append(self.progress_spinner)
         self.progress_label = Gtk.Label.new("")
         self.progress_label.set_xalign(0)
         self.progress_label.add_css_class("dim-label")
-        progress_box.append(self.progress_label)
-        self.results_section.append(progress_box)
+        self.progress_box.append(self.progress_label)
+        self.results_section.append(self.progress_box)
+
+        self.results_summary_card = Gtk.Box.new(Gtk.Orientation.VERTICAL, 8)
+        self.results_summary_card.set_margin_top(2)
+        self.results_summary_card.add_css_class("card")
+        self.results_summary_card.add_css_class("results-summary")
+        self.results_section.append(self.results_summary_card)
+
+        self.summary_title = Gtk.Label.new("")
+        self.summary_title.set_xalign(0)
+        self.summary_title.set_wrap(True)
+        self.summary_title.add_css_class("title-3")
+        self.results_summary_card.append(self.summary_title)
 
         self.summary = Gtk.Label.new("")
         self.summary.set_wrap(True)
         self.summary.set_xalign(0)
         self.summary.add_css_class("dim-label")
-        self.results_section.append(self.summary)
+        self.results_summary_card.append(self.summary)
+
+        self.metrics_box = Gtk.Box.new(Gtk.Orientation.HORIZONTAL, 12)
+        self.metrics_box.set_homogeneous(True)
+        self.metrics_box.add_css_class("route-metrics")
+        self.metrics_box.set_visible(False)
+        self.results_summary_card.append(self.metrics_box)
+        self.distance_value = self._append_metric("Distance")
+        self.duration_value = self._append_metric("Time")
+        self.stops_value = self._append_metric("Discoveries")
 
         self.results_actions = Gtk.Box.new(Gtk.Orientation.HORIZONTAL, 8)
         self.results_actions.set_halign(Gtk.Align.START)
@@ -310,6 +332,7 @@ class MainWindow(Adw.ApplicationWindow):
         self.detail_card.set_margin_end(2)
         self.detail_card.add_css_class("card")
         self.detail_card.add_css_class("view")
+        self.detail_card.add_css_class("route-detail")
         self.detail_revealer.set_child(self.detail_card)
 
         detail_header = Gtk.Box.new(Gtk.Orientation.HORIZONTAL, 12)
@@ -336,7 +359,7 @@ class MainWindow(Adw.ApplicationWindow):
         self.detail_subtitle.add_css_class("dim-label")
         detail_title_box.append(self.detail_subtitle)
 
-        close_details_button = Gtk.Button.new_from_icon_name("window-close-symbolic")
+        close_details_button = Gtk.Button.new_from_icon_name(icons.CLOSE)
         close_details_button.add_css_class("flat")
         close_details_button.set_valign(Gtk.Align.START)
         close_details_button.set_tooltip_text("Close details")
@@ -352,6 +375,25 @@ class MainWindow(Adw.ApplicationWindow):
         self.detail_rows = Gtk.Box.new(Gtk.Orientation.VERTICAL, 8)
         self.detail_card.append(self.detail_rows)
 
+        self.warning_box = Gtk.Box.new(Gtk.Orientation.VERTICAL, 6)
+        self.warning_box.set_visible(False)
+        self.results_section.append(self.warning_box)
+
+        self.results_list_heading = Gtk.Box.new(Gtk.Orientation.VERTICAL, 2)
+        self.results_list_heading.add_css_class("results-list-heading")
+        self.results_section.append(self.results_list_heading)
+
+        self.results_list_title = Gtk.Label.new("")
+        self.results_list_title.set_xalign(0)
+        self.results_list_title.add_css_class("heading")
+        self.results_list_heading.append(self.results_list_title)
+
+        self.results_list_description = Gtk.Label.new("")
+        self.results_list_description.set_xalign(0)
+        self.results_list_description.set_wrap(True)
+        self.results_list_description.add_css_class("dim-label")
+        self.results_list_heading.append(self.results_list_description)
+
         self.result_list = Gtk.ListBox.new()
         self.result_list.add_css_class("boxed-list")
         self.result_list.connect("row-activated", self._on_result_row_activated)
@@ -365,22 +407,28 @@ class MainWindow(Adw.ApplicationWindow):
         self.map_widget = self._create_map()
         self.map_pane.append(self.map_widget)
         planner_page = self.controls_stack.add_titled(self.planner_section, "planner", "Plan")
-        planner_page.set_icon_name("document-edit-symbolic")
+        planner_page.set_icon_name(icons.PLAN)
         results_page = self.controls_stack.add_titled(self.results_section, "results", "Results")
-        results_page.set_icon_name("view-list-symbolic")
+        results_page.set_icon_name(icons.RESULTS)
         self.controls_stack.set_visible_child_name("planner")
         self._apply_responsive_layout(self.get_default_size()[0], self.get_default_size()[1])
         self._update_end_postcode_state()
         self._render_initial_results()
 
-    def _create_action_row(self, title: str, subtitle: str, button: Gtk.Button) -> Adw.ActionRow:
-        row = Adw.ActionRow.new()
-        row.set_title(title)
-        row.set_subtitle(subtitle)
-        button.set_valign(Gtk.Align.CENTER)
-        row.add_suffix(button)
-        row.set_activatable_widget(button)
-        return row
+    def _append_metric(self, label_text: str) -> Gtk.Label:
+        metric = Gtk.Box.new(Gtk.Orientation.VERTICAL, 1)
+        metric.set_halign(Gtk.Align.START)
+        label = Gtk.Label.new(label_text)
+        label.set_xalign(0)
+        label.add_css_class("caption")
+        label.add_css_class("dim-label")
+        metric.append(label)
+        value = Gtk.Label.new("")
+        value.set_xalign(0)
+        value.add_css_class("route-metric-value")
+        metric.append(value)
+        self.metrics_box.append(metric)
+        return value
 
     def _create_map(self):
         map_widget = create_map_widget(self.discoveries, self.all_discoveries)
@@ -443,7 +491,12 @@ class MainWindow(Adw.ApplicationWindow):
             self.result_list.remove(child)
         self._hide_detail_panel()
         self.results_actions.set_visible(False)
-        self.summary.set_text("A few stories to start with. Select one on the map or below, or make a walk of your own.")
+        self.warning_box.set_visible(False)
+        self.metrics_box.set_visible(False)
+        self.summary_title.set_text("Explore nearby")
+        self.summary.set_text("A Lewisham-first selection to get you started. Make a walk when you are ready.")
+        self.results_list_title.set_text("Local stories")
+        self.results_list_description.set_text("Select one to read its story and source.")
         for discovery in self.discoveries[:6]:
             self._append_story_row(discovery)
 
@@ -572,6 +625,7 @@ class MainWindow(Adw.ApplicationWindow):
         self.route_source_row.set_sensitive(not generating and not self._locating_start)
         self.stop_row.set_sensitive(not generating and not self._locating_start)
         self.try_another_button.set_sensitive(not generating and not self._locating_start)
+        self.progress_box.set_visible(generating)
         if generating:
             self.progress_spinner.start()
             self.progress_label.set_text(message or "Generating walk...")
@@ -738,33 +792,31 @@ class MainWindow(Adw.ApplicationWindow):
             self.result_list.remove(child)
         self._hide_detail_panel()
         self.results_actions.set_visible(True)
-        distance_km = plan.distance_m / 1000
-        walking_minutes = plan.walking_seconds / 60
-        dwell_minutes = plan.dwell_seconds / 60
+        while child := self.warning_box.get_first_child():
+            self.warning_box.remove(child)
         stop_label = "blossom stops" if plan.request.route_mode is RouteMode.BLOSSOM_WALK else "stories"
-        if plan.dwell_seconds:
-            self.summary.set_text(
-                f"{THEME_LABELS.get(plan.request.route_theme, 'Your walk')} · {len(plan.discoveries)} {stop_label}, "
-                f"{distance_km:.1f} km, about {plan.total_minutes:.0f} minutes "
-                f"({walking_minutes:.0f} walking + {dwell_minutes:.0f} at discoveries)."
-            )
-        else:
-            self.summary.set_text(
-                f"{len(plan.discoveries)} {stop_label}, {distance_km:.1f} km, about {plan.total_minutes:.0f} minutes walking."
-            )
+        title = "Freddy's Blossom Walk" if plan.request.route_mode is RouteMode.BLOSSOM_WALK else THEME_LABELS.get(
+            plan.request.route_theme,
+            "Your walk",
+        )
+        self.summary_title.set_text(title)
+        self.summary.set_text("Your route is ready. Select a stop below for its story, or use the map for the big picture.")
+        self.distance_value.set_text(self._format_distance(plan.distance_m))
+        self.duration_value.set_text(self._format_duration(plan.total_seconds))
+        self.stops_value.set_text(str(len(plan.discoveries)))
+        self.metrics_box.set_visible(True)
+        self.results_list_title.set_text("Stops")
+        self.results_list_description.set_text(f"{len(plan.discoveries)} {stop_label}. Select one for more detail.")
         for warning in plan.warnings:
-            self._append_row(f"Warning: {warning}")
+            warning_label = Gtk.Label.new(warning)
+            warning_label.set_xalign(0)
+            warning_label.set_wrap(True)
+            warning_label.add_css_class("route-warning")
+            self.warning_box.append(warning_label)
+        self.warning_box.set_visible(bool(plan.warnings))
 
-        self._append_section_label("Your walk")
         for index, visit in enumerate(plan.visits, start=1):
             self._append_visit_row(index, visit, plan)
-
-        if plan.steps:
-            self._append_section_label("Directions")
-            for step in plan.steps:
-                self._append_row(
-                    f"{step.instruction}\n{self._format_distance(step.distance_m)} · {self._format_duration(step.duration_s)}"
-                )
         self._render_map(plan)
 
     def _show_discovery_details(self, discovery: Discovery) -> None:
@@ -774,19 +826,8 @@ class MainWindow(Adw.ApplicationWindow):
             subtitle=discovery.address or discovery.coordinate_label,
             description=discovery.description or "There is no fuller description in the source yet.",
         )
-        self._add_detail_row("Address", discovery.address or discovery.coordinate_label)
-        self._add_detail_row("Type", discovery.kind.value.title())
-        self._add_detail_row("Borough", discovery.borough or "Unknown")
-        self._add_detail_row("Collection", discovery.collection.replace("-", " ") or "Independent")
-        self._add_detail_row("Source", discovery.source_name or "Unknown")
-        self._add_detail_row("Curation Status", discovery.curation_status)
-        self._add_detail_row("Coordinate Accuracy", "Marked accurate" if discovery.is_accurate else "Needs checking")
-        if discovery.curation_note:
-            self._add_detail_row("Curation Note", discovery.curation_note)
-        if discovery.external_id:
-            self._add_detail_row("Source ID", discovery.external_id)
         if discovery.source_url:
-            self._add_detail_link_row("Source", discovery.source_url)
+            self._add_detail_link_row("Open Source", discovery.source_url)
         elif discovery.source_name == "Open Plaques" and discovery.external_id:
             self._add_detail_link_row("Open Plaques", f"https://openplaques.org/plaques/{discovery.external_id}")
         if discovery.image_url:
@@ -795,21 +836,11 @@ class MainWindow(Adw.ApplicationWindow):
 
     def _show_route_visit_details(self, visit: RouteVisit) -> None:
         self._show_detail_panel(
-            kicker="Map Stop",
+            kicker=f"{visit.kind.replace('_', ' ').title()} stop",
             title=visit.title,
-            subtitle=visit.coordinate_label,
+            subtitle=visit.address or visit.coordinate_label,
             description=self._route_visit_description(visit),
         )
-        self._add_detail_row("Type", visit.kind.replace("_", " ").title())
-        self._add_detail_row("Coordinates", visit.coordinate_label)
-        if visit.address:
-            self._add_detail_row("Address", visit.address)
-        if visit.description:
-            self._add_detail_row("Description", visit.description)
-        if visit.source_id:
-            self._add_detail_row("Source ID", visit.source_id)
-            if any(discovery.id == visit.source_id for discovery in self.all_discoveries):
-                self._add_seen_button(visit.source_id)
 
     def _route_visit_description(self, visit: RouteVisit) -> str:
         if visit.kind == "start":
@@ -847,53 +878,16 @@ class MainWindow(Adw.ApplicationWindow):
     def _close_details_panel(self, _button) -> None:
         self._hide_detail_panel()
 
-    def _add_detail_row(self, title: str, value: str) -> None:
-        row = Gtk.Box.new(Gtk.Orientation.HORIZONTAL, 12)
-        row.add_css_class("toolbar")
-
-        labels = Gtk.Box.new(Gtk.Orientation.VERTICAL, 3)
-        labels.set_hexpand(True)
-        row.append(labels)
-
-        key = Gtk.Label.new(title)
-        key.set_xalign(0)
-        key.add_css_class("caption-heading")
-        labels.append(key)
-
-        content = Gtk.Label.new(value)
-        content.set_xalign(0)
-        content.set_wrap(True)
-        content.add_css_class("dim-label")
-        labels.append(content)
-
-        self.detail_rows.append(row)
-
     def _add_detail_link_row(self, title: str, uri: str) -> None:
-        row = Gtk.Box.new(Gtk.Orientation.HORIZONTAL, 12)
-        row.add_css_class("toolbar")
-
-        labels = Gtk.Box.new(Gtk.Orientation.VERTICAL, 3)
-        labels.set_hexpand(True)
-        row.append(labels)
-
-        key = Gtk.Label.new(title)
-        key.set_xalign(0)
-        key.add_css_class("caption-heading")
-        labels.append(key)
-
-        content = Gtk.Label.new(uri)
-        content.set_xalign(0)
-        content.set_wrap(True)
-        content.add_css_class("dim-label")
-        labels.append(content)
-
-        button = Gtk.Button.new_from_icon_name("adwaita-external-link-symbolic")
-        button.add_css_class("flat")
-        button.set_valign(Gtk.Align.CENTER)
+        button = Gtk.Button.new()
+        button.set_halign(Gtk.Align.START)
+        button.add_css_class("pill")
+        content = Gtk.Box.new(Gtk.Orientation.HORIZONTAL, 6)
+        content.append(Gtk.Image.new_from_icon_name(icons.EXTERNAL_LINK))
+        content.append(Gtk.Label.new(title))
+        button.set_child(content)
         button.connect("clicked", lambda _button, link=uri: Gtk.show_uri(self, link, 0))
-        row.append(button)
-
-        self.detail_rows.append(row)
+        self.detail_rows.append(button)
 
     def _add_seen_button(self, story_id: str) -> None:
         seen = set(self.settings.get_strv("seen-story-ids"))
@@ -916,35 +910,16 @@ class MainWindow(Adw.ApplicationWindow):
         self.settings.set_strv("seen-story-ids", sorted(seen))
         self.toast_overlay.add_toast(Adw.Toast.new(message))
 
-    def _append_row(self, text: str) -> None:
-        label = Gtk.Label.new(text)
-        label.set_xalign(0)
-        label.set_wrap(True)
-        label.set_max_width_chars(42)
-        label.set_margin_top(8)
-        label.set_margin_bottom(8)
-        label.set_margin_start(12)
-        label.set_margin_end(12)
-        self.result_list.append(label)
-
-    def _append_section_label(self, text: str) -> None:
-        label = Gtk.Label.new(text)
-        label.set_xalign(0)
-        label.set_margin_top(10)
-        label.set_margin_bottom(4)
-        label.set_margin_start(2)
-        label.add_css_class("heading")
-        self.result_list.append(label)
-
     def _append_story_row(self, discovery: Discovery) -> None:
         row = Adw.ActionRow.new()
         row.discovery = discovery
         row.set_use_markup(False)
         row.set_title(display_title(discovery))
-        row.set_subtitle(f"{story_preview(discovery)}\n{source_label(discovery)}")
-        row.set_subtitle_lines(4)
+        row.set_subtitle(source_label(discovery))
+        row.set_subtitle_lines(1)
+        row.set_title_lines(2)
         row.set_activatable(True)
-        arrow = Gtk.Image.new_from_icon_name("go-next-symbolic")
+        arrow = Gtk.Image.new_from_icon_name(icons.NEXT)
         arrow.add_css_class("dim-label")
         row.add_suffix(arrow)
         self.result_list.append(row)
@@ -955,14 +930,21 @@ class MainWindow(Adw.ApplicationWindow):
         row.set_use_markup(False)
         discovery = next((item for item in plan.discoveries if item.id == visit.source_id), None)
         title = display_title(discovery) if discovery is not None else visit.title
-        row.set_title(f"{index}. {title}")
-        details = self._visit_label(index, visit, plan).split("\n")[1:]
-        if details:
-            row.set_subtitle("\n".join(details))
+        row.set_title(title)
+        row.set_title_lines(2)
+        row.set_subtitle(self._visit_subtitle(visit, discovery, plan))
+        row.set_subtitle_lines(2)
         row.set_activatable(True)
+        row.add_css_class("route-stop-row")
         badge = Gtk.Label.new(str(index) if visit.kind not in {"end", "cafe", "pub"} else visit.kind[:1].upper())
         badge.add_css_class("route-badge")
+        badge.set_valign(Gtk.Align.CENTER)
         row.add_prefix(badge)
+        arrow = Gtk.Image.new_from_icon_name(icons.NEXT)
+        arrow.add_css_class("dim-label")
+        row.add_suffix(arrow)
+        if discovery is not None:
+            row.discovery = discovery
         self.result_list.append(row)
 
     def _on_result_row_activated(self, _list_box, row) -> None:
@@ -1010,38 +992,25 @@ class MainWindow(Adw.ApplicationWindow):
             {"mode": RouteMode.BLOSSOM_WALK, "theme": RouteTheme.SURPRISE},
         ][self.route_source_row.get_selected()]
 
-    def _discovery_meta(self, discovery) -> str:
-        parts = [discovery.borough or "Unknown borough", discovery.collection.replace("-", " "), discovery.curation_status]
-        if discovery.external_id:
-            parts.append(f"{discovery.source_name or 'Source'} {discovery.external_id}")
-        return " · ".join(parts)
-
-    def _visit_label(self, index: int, visit, plan: RoutePlan) -> str:
-        title = f"{index}. {visit.title}"
-        if visit.kind == "plaque":
+    def _visit_subtitle(self, visit: RouteVisit, discovery: Discovery | None, plan: RoutePlan) -> str:
+        if discovery is not None:
+            if discovery.kind is DiscoveryKind.BLOSSOM:
+                details = [source_label(discovery), "Walk past"]
+                if visit.address:
+                    details.insert(0, visit.address)
+                return " · ".join(details)
             dwell = self._format_duration(plan.request.discovery_dwell_minutes * 60)
-            lines = [title]
+            details = [source_label(discovery), f"{dwell} stop"]
             if visit.address:
-                lines.append(visit.address)
-                lines.append(f"{dwell} at discovery")
-            else:
-                lines.append(f"{visit.coordinate.lat:.5f}, {visit.coordinate.lon:.5f} · {dwell} at discovery")
-            return "\n".join(line for line in lines if line)
+                details.insert(0, visit.address)
+            return " · ".join(details)
         if visit.kind == "blossom":
-            lines = [title]
-            if visit.description:
-                lines.append(visit.description)
-            if visit.address:
-                lines.append(visit.address)
-            lines.append("Walk past")
-            return "\n".join(line for line in lines if line)
+            return f"{visit.address} · Walk past" if visit.address else "Walk past"
         if visit.kind in ("cafe", "pub"):
-            lines = [title]
-            if visit.address:
-                lines.append(visit.address)
-            lines.append(f"{visit.kind.title()} stop")
-            return "\n".join(lines)
-        return f"{title}\n{visit.coordinate.lat:.5f}, {visit.coordinate.lon:.5f}"
+            return visit.address or f"{visit.kind.title()} stop"
+        if visit.kind == "end":
+            return "End of walk"
+        return visit.address or "Route stop"
 
     def _format_distance(self, metres: float) -> str:
         if metres >= 1000:

@@ -46,6 +46,7 @@ install_data(
 install_data(
   [
     'lewisham_walks/ui/__init__.py',
+    'lewisham_walks/ui/icons.py',
     'lewisham_walks/ui/layout.py',
     'lewisham_walks/ui/main_window.py',
     'lewisham_walks/ui/map_widget.py',

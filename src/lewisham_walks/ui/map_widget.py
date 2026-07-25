@@ -32,6 +32,7 @@ from ..map_geometry import (
 )
 from ..map_style import vector_map_style
 from ..models import Coordinate, Discovery, DiscoveryKind, RoutePlan, RouteVisit
+from . import icons
 from .layout import MAP_COMPACT_MIN_HEIGHT, MAP_COMPACT_MIN_WIDTH
 
 DiscoveryCallback = Callable[[Discovery], None]
@@ -308,7 +309,7 @@ class ShumateDiscoveryMapWidget(Gtk.Box):
         marker = Shumate.Marker.new()
         marker.set_location(discovery.coordinate.lat, discovery.coordinate.lon)
         marker.set_tooltip_text(discovery.title)
-        icon = Gtk.Image.new_from_icon_name("media-record-symbolic")
+        icon = Gtk.Image.new_from_icon_name(icons.MAP_MARKER)
         icon.set_pixel_size(10)
         button = Gtk.Button.new()
         button.set_child(icon)

@@ -9,6 +9,7 @@ from gi.repository import Adw, Gtk
 
 from ..discovery import display_title, source_label, story_preview
 from ..models import Discovery
+from . import icons
 
 
 class DiscoveryBrowserWindow(Adw.Window):
@@ -168,7 +169,7 @@ class DiscoveryBrowserWindow(Adw.Window):
             link = Adw.ActionRow.new()
             link.set_title("Source")
             link.set_subtitle(discovery.source_url)
-            button = Gtk.Button.new_from_icon_name("adwaita-external-link-symbolic")
+            button = Gtk.Button.new_from_icon_name(icons.EXTERNAL_LINK)
             button.set_valign(Gtk.Align.CENTER)
             button.connect("clicked", lambda _button: Gtk.show_uri(self, discovery.source_url, 0))
             link.add_suffix(button)

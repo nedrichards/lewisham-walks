@@ -29,8 +29,18 @@ Adw, Gio, GLib, Gtk, GTK_IMPORT_ERROR = _load_gtk()
 
 if Adw is not None:
     from lewisham_walks.main import LewishamWalksApp
-    from lewisham_walks.models import Coordinate, Discovery, DiscoveryKind
+    from lewisham_walks.models import (
+        Coordinate,
+        Discovery,
+        DiscoveryKind,
+        RoutePlan,
+        RouteRequest,
+        RouteStep,
+        RouteTheme,
+        RouteVisit,
+    )
     from lewisham_walks.ui.discovery_browser_window import DiscoveryBrowserWindow
+    from lewisham_walks.ui.icons import REQUIRED_ICON_NAMES
     from lewisham_walks.ui.layout import (
         COMPACT_BREAKPOINT,
         CONTROLS_WIDE_MIN_WIDTH,
@@ -179,18 +189,11 @@ class MainWindowResponsiveTests(unittest.TestCase):
         self.assertFalse(self.window.sidebar_button.get_active())
         self.assertEqual(self.window.sidebar_button.get_tooltip_text(), "Show walk planner")
 
-    def test_location_action_icons_exist_in_the_runtime_theme(self) -> None:
+    def test_every_application_icon_exists_in_the_runtime_theme(self) -> None:
         icon_theme = Gtk.IconTheme.get_for_display(self.window.get_display())
 
-        expected_icons = {
-            self.window.sidebar_button: "sidebar-show-symbolic",
-            self.window.current_location_button: "find-location-symbolic",
-            self.window.pick_start_button: "mark-location-symbolic",
-            self.window.pick_end_button: "mark-location-symbolic",
-        }
-        for button, icon_name in expected_icons.items():
+        for icon_name in REQUIRED_ICON_NAMES:
             with self.subTest(icon_name=icon_name):
-                self.assertEqual(button.get_icon_name(), icon_name)
                 self.assertTrue(icon_theme.has_icon(icon_name))
 
     def test_plan_and_results_are_full_height_pages_at_every_width(self) -> None:
@@ -210,6 +213,72 @@ class MainWindowResponsiveTests(unittest.TestCase):
 
                 self.assertEqual(self.window.controls_stack.get_visible_child_name(), "planner")
                 self.assertIs(self.window.controls_stack.get_visible_child(), self.window.planner_section)
+
+    def test_route_results_prioritise_summary_and_stops_over_internal_detail(self) -> None:
+        story = Discovery(
+            "test-story",
+            "A useful local story",
+            "A much longer description that belongs in the selected-stop detail rather than every route row.",
+            Coordinate(51.462, -0.010),
+            address="1 Lewisham Way",
+            source_name="Open Plaques",
+            source_url="https://example.com/story",
+            borough="Lewisham",
+            curation_status="in_scope",
+        )
+        request = RouteRequest(
+            start=Coordinate(51.461, -0.011),
+            duration_minutes=30,
+            route_theme=RouteTheme.PEOPLE,
+        )
+        visits = [
+            RouteVisit(
+                kind="plaque",
+                title=story.title,
+                coordinate=story.coordinate,
+                description=story.description,
+                address=story.address,
+                source_id=story.id,
+            ),
+            RouteVisit(kind="end", title="Return to start", coordinate=request.start),
+        ]
+        plan = RoutePlan(
+            request=request,
+            discoveries=[story],
+            amenities=[],
+            visits=visits,
+            waypoints=[request.start, story.coordinate, request.start],
+            geometry=[request.start, story.coordinate, request.start],
+            steps=[RouteStep("Turn-by-turn detail", 1200, 900)],
+            distance_m=1200,
+            walking_seconds=900,
+            dwell_seconds=180,
+        )
+
+        self.window._render_plan(plan)
+
+        self.assertEqual(self.window.summary_title.get_text(), "People & creativity")
+        self.assertEqual(self.window.distance_value.get_text(), "1.2 km")
+        self.assertEqual(self.window.duration_value.get_text(), "18 min")
+        self.assertEqual(self.window.stops_value.get_text(), "1")
+        self.assertEqual(self.window.results_list_title.get_text(), "Stops")
+        rows = []
+        row = self.window.result_list.get_first_child()
+        while row is not None:
+            rows.append(row)
+            row = row.get_next_sibling()
+        self.assertEqual(len(rows), len(visits))
+        self.assertEqual(rows[0].get_title(), story.title)
+        self.assertNotIn(story.description, rows[0].get_subtitle())
+        self.assertEqual(rows[1].get_subtitle(), "End of walk")
+
+        self.window._show_discovery_details(story)
+        detail_children = []
+        child = self.window.detail_rows.get_first_child()
+        while child is not None:
+            detail_children.append(child)
+            child = child.get_next_sibling()
+        self.assertEqual(len(detail_children), 2)
 
     def test_compact_layout_releases_the_desktop_minimum_width(self) -> None:
         self.window._apply_responsive_layout(390, 780)
