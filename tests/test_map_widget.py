@@ -7,6 +7,7 @@ from lewisham_walks.map_geometry import (
     project_coordinate,
     unproject_coordinate,
 )
+from lewisham_walks.map_style import GNOME_VECTOR_TILE_URL, vector_map_style
 from lewisham_walks.models import Coordinate, Discovery
 
 
@@ -105,6 +106,23 @@ class MapProjectionTests(unittest.TestCase):
         self.assertEqual(12, len(selected))
         self.assertGreaterEqual(len({round(item.coordinate.lon, 2) for item in selected}), 4)
         self.assertGreaterEqual(len({round(item.coordinate.lat, 2) for item in selected}), 3)
+
+
+class MapStyleTests(unittest.TestCase):
+    def test_dark_style_reuses_the_same_open_vector_tiles(self):
+        day_source = vector_map_style(False)["sources"]["openmaptiles"]
+        night_source = vector_map_style(True)["sources"]["openmaptiles"]
+
+        self.assertEqual(day_source["tiles"], [GNOME_VECTOR_TILE_URL])
+        self.assertEqual(night_source, day_source)
+
+    def test_dark_style_uses_a_distinct_low_luminance_palette(self):
+        day_layers = {layer["id"]: layer for layer in vector_map_style(False)["layers"]}
+        night_layers = {layer["id"]: layer for layer in vector_map_style(True)["layers"]}
+
+        self.assertEqual(day_layers["background"]["paint"]["background-color"], "#ece7da")
+        self.assertEqual(night_layers["background"]["paint"]["background-color"], "#171a1d")
+        self.assertNotEqual(day_layers["road-label"]["paint"], night_layers["road-label"]["paint"])
 
 
 if __name__ == "__main__":

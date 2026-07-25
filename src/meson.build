@@ -23,6 +23,7 @@ install_data(
     'lewisham_walks/discovery.py',
     'lewisham_walks/export.py',
     'lewisham_walks/map_geometry.py',
+    'lewisham_walks/map_style.py',
     'lewisham_walks/main.py',
     'lewisham_walks/models.py',
     'lewisham_walks/planner.py',

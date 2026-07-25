@@ -6,6 +6,9 @@ from collections.abc import Callable
 
 import gi
 
+gi.require_version("Adw", "1")
+gi.require_version("Gtk", "4.0")
+
 try:
     gi.require_version("Gdk", "4.0")
     gi.require_version("Shumate", "1.0")
@@ -17,9 +20,7 @@ except (ImportError, ValueError):
     Shumate = None
     HAS_SHUMATE = False
 
-gi.require_version("Gtk", "4.0")
-
-from gi.repository import GLib, Gtk
+from gi.repository import Adw, GLib, Gtk
 
 from ..map_geometry import (
     MapBounds,
@@ -29,6 +30,7 @@ from ..map_geometry import (
     project_coordinate,
     unproject_coordinate,
 )
+from ..map_style import vector_map_style
 from ..models import Coordinate, Discovery, DiscoveryKind, RoutePlan, RouteVisit
 from .layout import MAP_COMPACT_MIN_HEIGHT, MAP_COMPACT_MIN_WIDTH
 
@@ -70,6 +72,11 @@ class ShumateDiscoveryMapWidget(Gtk.Box):
         self._discovery_selected_callback: DiscoveryCallback | None = None
         self._visit_selected_callback: VisitCallback | None = None
         self._discovery_selection_enabled = True
+        self._style_manager = Adw.StyleManager.get_default()
+        self._dark = self._style_manager.get_dark()
+        self._pending_dark = self._dark
+        self._style_animation = None
+        self._style_manager.connect("notify::dark", self._on_dark_changed)
 
         self._map_view = Shumate.SimpleMap.new()
         self._map_view.set_hexpand(True)
@@ -151,24 +158,56 @@ class ShumateDiscoveryMapWidget(Gtk.Box):
         self._render_picked_locations()
 
     def _set_default_map_source(self) -> None:
-        map_source = self._create_vector_map_source()
+        map_source = self._create_vector_map_source(self._dark)
         if map_source is None:
             registry = Shumate.MapSourceRegistry.new_with_defaults()
             map_source = registry.get_by_id("osm-mapnik")
         if map_source is not None:
             self._map_view.set_map_source(map_source)
 
-    def _create_vector_map_source(self):
+    def _create_vector_map_source(self, dark: bool):
         if not hasattr(Shumate, "VectorRenderer") or not Shumate.VectorRenderer.is_supported():
             return None
         try:
-            source = Shumate.VectorRenderer.new("gnome-openmaptiles", json.dumps(_GNOME_VECTOR_STYLE))
-            source.set_property("name", "GNOME OpenMapTiles")
+            variant = "dark" if dark else "light"
+            source = Shumate.VectorRenderer.new(
+                f"gnome-openmaptiles-{variant}",
+                json.dumps(vector_map_style(dark)),
+            )
+            source.set_property("name", f"GNOME OpenMapTiles ({variant})")
             source.set_property("license", "OpenMapTiles and OpenStreetMap contributors")
             source.set_property("license-uri", "https://www.openstreetmap.org/copyright")
             return source
         except Exception:
             return None
+
+    def _on_dark_changed(self, style_manager, _property) -> None:
+        dark = style_manager.get_dark()
+        self._pending_dark = dark
+        if dark == self._dark or self._style_animation is not None:
+            return
+        self._fade_map_out()
+
+    def _fade_map_out(self) -> None:
+        target = Adw.CallbackAnimationTarget.new(self._map_view.set_opacity)
+        animation = Adw.TimedAnimation.new(self._map_view, self._map_view.get_opacity(), 0.0, 120, target)
+        animation.connect("done", self._on_map_faded_out)
+        self._style_animation = animation
+        animation.play()
+
+    def _on_map_faded_out(self, _animation) -> None:
+        self._dark = self._pending_dark
+        self._set_default_map_source()
+        target = Adw.CallbackAnimationTarget.new(self._map_view.set_opacity)
+        animation = Adw.TimedAnimation.new(self._map_view, 0.0, 1.0, 180, target)
+        animation.connect("done", self._on_map_faded_in)
+        self._style_animation = animation
+        animation.play()
+
+    def _on_map_faded_in(self, _animation) -> None:
+        self._style_animation = None
+        if self._pending_dark != self._dark:
+            self._fade_map_out()
 
     def _render_all_discoveries(self) -> None:
         route_ids = {item.id for item in self._plan.discoveries} if self._plan is not None else set()
@@ -357,6 +396,9 @@ class DiscoveryMapWidget(Gtk.DrawingArea):
         self._discovery_selected_callback: DiscoveryCallback | None = None
         self._visit_selected_callback: VisitCallback | None = None
         self._discovery_selection_enabled = True
+        self._style_manager = Adw.StyleManager.get_default()
+        self._dark = self._style_manager.get_dark()
+        self._style_manager.connect("notify::dark", self._on_dark_changed)
         self._last_width = 560
         self._last_height = 560
         self._click_gesture = Gtk.GestureClick.new()
@@ -364,6 +406,10 @@ class DiscoveryMapWidget(Gtk.DrawingArea):
         self._click_gesture.connect("released", self._on_map_clicked)
         self.add_controller(self._click_gesture)
         self.set_draw_func(self._draw)
+
+    def _on_dark_changed(self, style_manager, _property) -> None:
+        self._dark = style_manager.get_dark()
+        self.queue_draw()
 
     def set_plan(self, plan: RoutePlan | None) -> None:
         self._plan = plan
@@ -420,16 +466,19 @@ class DiscoveryMapWidget(Gtk.DrawingArea):
         return coordinate_bounds(coordinates)
 
     def _draw_background(self, context, width: int, height: int) -> None:
-        context.set_source_rgb(0.96, 0.97, 0.95)
+        context.set_source_rgb(*(0.09, 0.11, 0.12) if self._dark else (0.96, 0.97, 0.95))
         context.rectangle(0, 0, width, height)
         context.fill()
-        context.set_source_rgb(0.78, 0.82, 0.78)
+        context.set_source_rgb(*(0.30, 0.34, 0.32) if self._dark else (0.78, 0.82, 0.78))
         context.set_line_width(1)
         context.rectangle(12, 12, max(width - 24, 0), max(height - 24, 0))
         context.stroke()
 
     def _draw_grid(self, context, width: int, height: int) -> None:
-        context.set_source_rgba(0.55, 0.62, 0.58, 0.25)
+        if self._dark:
+            context.set_source_rgba(0.55, 0.62, 0.58, 0.18)
+        else:
+            context.set_source_rgba(0.55, 0.62, 0.58, 0.25)
         context.set_line_width(1)
         for index in range(1, 5):
             x = width * index / 5
@@ -526,7 +575,10 @@ class DiscoveryMapWidget(Gtk.DrawingArea):
         context.show_text(text)
 
     def _draw_caption(self, context, width: int, height: int) -> None:
-        context.set_source_rgba(0.12, 0.16, 0.18, 0.72)
+        if self._dark:
+            context.set_source_rgba(0.86, 0.89, 0.92, 0.82)
+        else:
+            context.set_source_rgba(0.12, 0.16, 0.18, 0.72)
         context.select_font_face("Sans")
         context.set_font_size(12)
         caption = f"{len(self._discoveries)} discoveries"
@@ -610,133 +662,3 @@ def _find_visit_at_position(
         if closest is None or distance < closest[0]:
             closest = (distance, visit)
     return closest[1] if closest is not None else None
-
-
-_GNOME_VECTOR_STYLE = {
-    "version": 8,
-    "name": "Lewisham Walks",
-    "sources": {
-        "openmaptiles": {
-            "type": "vector",
-            "tiles": ["https://tileserver-gl-light.apps.openshift.gnome.org/data/v3/{z}/{x}/{y}.pbf"],
-            "minzoom": 0,
-            "maxzoom": 14,
-        }
-    },
-    "layers": [
-        {
-            "id": "background",
-            "type": "background",
-            "paint": {"background-color": "#ece7da"},
-        },
-        {
-            "id": "park",
-            "type": "fill",
-            "source": "openmaptiles",
-            "source-layer": "landcover",
-            "filter": ["in", "class", "grass", "wood"],
-            "paint": {"fill-color": "#b9d69b", "fill-opacity": 0.55},
-        },
-        {
-            "id": "landuse",
-            "type": "fill",
-            "source": "openmaptiles",
-            "source-layer": "landuse",
-            "filter": ["in", "class", "residential", "suburb", "neighbourhood"],
-            "paint": {"fill-color": "#e2dccf", "fill-opacity": 0.55},
-        },
-        {
-            "id": "water",
-            "type": "fill",
-            "source": "openmaptiles",
-            "source-layer": "water",
-            "paint": {"fill-color": "#9ec8df"},
-        },
-        {
-            "id": "waterway",
-            "type": "line",
-            "source": "openmaptiles",
-            "source-layer": "waterway",
-            "paint": {"line-color": "#9ec8df", "line-width": 1.5},
-        },
-        {
-            "id": "building",
-            "type": "fill",
-            "source": "openmaptiles",
-            "source-layer": "building",
-            "minzoom": 15,
-            "paint": {"fill-color": "#d5c6ad", "fill-opacity": 0.75},
-        },
-        {
-            "id": "road-path",
-            "type": "line",
-            "source": "openmaptiles",
-            "source-layer": "transportation",
-            "filter": ["in", "class", "path", "track"],
-            "paint": {"line-color": "#ffffff", "line-width": 1.2, "line-dasharray": [1, 1]},
-        },
-        {
-            "id": "road-minor",
-            "type": "line",
-            "source": "openmaptiles",
-            "source-layer": "transportation",
-            "filter": ["in", "class", "minor", "service"],
-            "paint": {"line-color": "#ffffff", "line-width": 1.8},
-        },
-        {
-            "id": "road-major",
-            "type": "line",
-            "source": "openmaptiles",
-            "source-layer": "transportation",
-            "filter": ["in", "class", "primary", "secondary", "tertiary", "trunk"],
-            "paint": {"line-color": "#fff7d6", "line-width": 3.0},
-        },
-        {
-            "id": "rail",
-            "type": "line",
-            "source": "openmaptiles",
-            "source-layer": "transportation",
-            "filter": ["in", "class", "rail", "transit"],
-            "paint": {"line-color": "#9a958c", "line-width": 1.2},
-        },
-        {
-            "id": "road-label",
-            "type": "symbol",
-            "source": "openmaptiles",
-            "source-layer": "transportation_name",
-            "minzoom": 14,
-            "layout": {
-                "symbol-placement": "line",
-                "text-field": "{name}",
-                "text-font": ["Noto Sans Regular"],
-                "text-size": 11,
-            },
-            "paint": {"text-color": "#333333", "text-halo-color": "#ffffff", "text-halo-width": 1.5},
-        },
-        {
-            "id": "place-label",
-            "type": "symbol",
-            "source": "openmaptiles",
-            "source-layer": "place",
-            "layout": {
-                "text-field": "{name}",
-                "text-font": ["Noto Sans Regular"],
-                "text-size": 13,
-            },
-            "paint": {"text-color": "#333333", "text-halo-color": "#ffffff", "text-halo-width": 1.5},
-        },
-        {
-            "id": "poi-label",
-            "type": "symbol",
-            "source": "openmaptiles",
-            "source-layer": "poi",
-            "minzoom": 16,
-            "layout": {
-                "text-field": "{name}",
-                "text-font": ["Noto Sans Regular"],
-                "text-size": 10,
-            },
-            "paint": {"text-color": "#555555", "text-halo-color": "#ffffff", "text-halo-width": 1},
-        },
-    ],
-}
