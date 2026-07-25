@@ -18,11 +18,14 @@ jobs:
     name: Source quality
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
-      - uses: astral-sh/ruff-action@v3
+      - name: Install source-test dependencies
+        run: python3 -m pip install ruff==0.15.12 requests==2.32.5
+      - name: Lint
+        run: ruff check .
       - name: Compile Python
         run: python3 -m compileall -q src scripts tests
       - name: Run network-independent tests
@@ -35,7 +38,7 @@ jobs:
       image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
       options: --privileged
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Validate desktop metadata
         run: |
           glib-compile-schemas --strict --dry-run data
