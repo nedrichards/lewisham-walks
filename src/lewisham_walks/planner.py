@@ -48,6 +48,7 @@ def straight_line_route(waypoints: list[Coordinate], request: RouteRequest) -> t
             instruction=f"Walk to stop {index + 1}",
             distance_m=haversine_m(a, b),
             duration_s=haversine_m(a, b) / (request.walking_speed_kmh * 1000 / 3600),
+            leg_index=index,
         )
         for index, (a, b) in enumerate(zip(waypoints, waypoints[1:]))
     ]

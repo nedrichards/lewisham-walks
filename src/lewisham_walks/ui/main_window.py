@@ -12,7 +12,7 @@ gi.require_version("Gtk", "4.0")
 
 from gi.repository import Adw, Gio, GLib, Gtk
 
-from .. import APP_ID
+from .. import APP_ID, runtime_app_id
 from ..discovery import (
     THEME_LABELS,
     discoveries_for_theme,
@@ -28,6 +28,7 @@ from ..models import (
     RouteMode,
     RoutePlan,
     RouteRequest,
+    RouteStep,
     RouteTheme,
     RouteVisit,
     StopPreference,
@@ -91,6 +92,8 @@ class MainWindow(Adw.ApplicationWindow):
         self._syncing_sidebar_button = False
         self._preferences_window: PreferencesWindow | None = None
         self._stories_window: DiscoveryBrowserWindow | None = None
+        self._shortcuts_window: Gtk.ShortcutsWindow | None = None
+        self._about_dialog: Adw.AboutDialog | None = None
         self._build_ui()
 
     def _build_ui(self) -> None:
@@ -134,10 +137,11 @@ class MainWindow(Adw.ApplicationWindow):
         header.pack_start(self.sidebar_button)
         self._update_sidebar_button()
 
-        prefs_button = Gtk.Button.new_from_icon_name(icons.PREFERENCES)
-        prefs_button.set_tooltip_text("Preferences")
-        prefs_button.connect("clicked", self._show_preferences)
-        header.pack_end(prefs_button)
+        self.menu_button = Gtk.MenuButton.new()
+        self.menu_button.set_icon_name(icons.MENU)
+        self.menu_button.set_tooltip_text("Main Menu")
+        self.menu_button.set_menu_model(self._create_primary_menu())
+        header.pack_end(self.menu_button)
 
         export_button = Gtk.Button.new_from_icon_name(icons.EXPORT)
         export_button.set_tooltip_text("Export GPX")
@@ -178,12 +182,18 @@ class MainWindow(Adw.ApplicationWindow):
         self.controls_switcher.set_halign(Gtk.Align.FILL)
         self.controls_switcher.set_hexpand(True)
         self.controls_switcher.set_policy(Adw.ViewSwitcherPolicy.WIDE)
+        self.compact_breakpoint.add_setter(
+            self.controls_switcher,
+            "policy",
+            Adw.ViewSwitcherPolicy.NARROW,
+        )
         self.controls_content.append(self.controls_switcher)
         self.controls_content.append(self.controls_stack)
 
         self.planner_section = Gtk.Box.new(Gtk.Orientation.VERTICAL, 12)
         self.results_section = Gtk.Box.new(Gtk.Orientation.VERTICAL, 10)
         self.results_section.set_margin_top(6)
+        self.directions_section = self._create_directions_section()
 
         intro = Gtk.Box.new(Gtk.Orientation.VERTICAL, 5)
         intro.set_margin_bottom(6)
@@ -318,6 +328,11 @@ class MainWindow(Adw.ApplicationWindow):
         self.try_another_button.add_css_class("pill")
         self.try_another_button.connect("clicked", self._generate_walk)
         self.results_actions.append(self.try_another_button)
+        self.directions_button = Gtk.Button.new_with_label("View Directions")
+        self.directions_button.add_css_class("pill")
+        self.directions_button.connect("clicked", self._show_directions_section)
+        self.directions_button.set_visible(False)
+        self.results_actions.append(self.directions_button)
         self.results_section.append(self.results_actions)
 
         self.detail_revealer = Gtk.Revealer.new()
@@ -410,10 +425,34 @@ class MainWindow(Adw.ApplicationWindow):
         planner_page.set_icon_name(icons.PLAN)
         results_page = self.controls_stack.add_titled(self.results_section, "results", "Results")
         results_page.set_icon_name(icons.RESULTS)
+        self.directions_page = self.controls_stack.add_titled(
+            self.directions_section,
+            "directions",
+            "Directions",
+        )
+        self.directions_page.set_icon_name(icons.NEXT)
+        self.directions_page.set_visible(False)
         self.controls_stack.set_visible_child_name("planner")
         self._apply_responsive_layout(self.get_default_size()[0], self.get_default_size()[1])
         self._update_end_postcode_state()
         self._render_initial_results()
+
+    def _create_primary_menu(self) -> Gio.Menu:
+        menu = Gio.Menu.new()
+
+        settings_section = Gio.Menu.new()
+        settings_section.append("Preferences", "app.preferences")
+        menu.append_section(None, settings_section)
+
+        help_section = Gio.Menu.new()
+        help_section.append("Keyboard Shortcuts", "app.shortcuts")
+        help_section.append("About Lewisham Walks", "app.about")
+        menu.append_section(None, help_section)
+
+        quit_section = Gio.Menu.new()
+        quit_section.append("Quit", "app.quit")
+        menu.append_section(None, quit_section)
+        return menu
 
     def _append_metric(self, label_text: str) -> Gtk.Label:
         metric = Gtk.Box.new(Gtk.Orientation.VERTICAL, 1)
@@ -429,6 +468,28 @@ class MainWindow(Adw.ApplicationWindow):
         metric.append(value)
         self.metrics_box.append(metric)
         return value
+
+    def _create_directions_section(self) -> Gtk.Box:
+        section = Gtk.Box.new(Gtk.Orientation.VERTICAL, 14)
+        section.set_margin_top(6)
+
+        heading = Gtk.Label.new("Walking Directions")
+        heading.set_xalign(0)
+        heading.set_wrap(True)
+        heading.add_css_class("title-2")
+        section.append(heading)
+
+        self.directions_summary = Gtk.Label.new("")
+        self.directions_summary.set_xalign(0)
+        self.directions_summary.set_wrap(True)
+        self.directions_summary.add_css_class("dim-label")
+        section.append(self.directions_summary)
+
+        self.directions_groups = Gtk.Box.new(Gtk.Orientation.VERTICAL, 16)
+        section.append(self.directions_groups)
+        self.direction_leg_groups: list[Adw.PreferencesGroup] = []
+        self.direction_rows: list[Adw.ActionRow] = []
+        return section
 
     def _create_map(self):
         map_widget = create_map_widget(self.discoveries, self.all_discoveries)
@@ -493,6 +554,7 @@ class MainWindow(Adw.ApplicationWindow):
         self.results_actions.set_visible(False)
         self.warning_box.set_visible(False)
         self.metrics_box.set_visible(False)
+        self._clear_directions()
         self.summary_title.set_text("Explore nearby")
         self.summary.set_text("A Lewisham-first selection to get you started. Make a walk when you are ready.")
         self.results_list_title.set_text("Local stories")
@@ -509,6 +571,51 @@ class MainWindow(Adw.ApplicationWindow):
     def _clear_preferences_window(self, *_args) -> bool:
         self._preferences_window = None
         return False
+
+    def _show_shortcuts(self, _action) -> None:
+        if self._shortcuts_window is None:
+            resource_path = "/com/nedrichards/lewishamwalks/gtk/shortcuts-window.ui"
+            try:
+                Gio.resources_lookup_data(resource_path, Gio.ResourceLookupFlags.NONE)
+            except GLib.Error:
+                builder = Gtk.Builder.new_from_file(str(Path(__file__).with_name("shortcuts-window.ui")))
+            else:
+                builder = Gtk.Builder.new_from_resource(resource_path)
+            shortcuts_window = builder.get_object("shortcuts_window")
+            if not isinstance(shortcuts_window, Gtk.ShortcutsWindow):
+                raise RuntimeError("Could not load the keyboard shortcuts window")
+            shortcuts_window.set_transient_for(self)
+            shortcuts_window.connect("close-request", self._clear_shortcuts_window)
+            self._shortcuts_window = shortcuts_window
+        self._shortcuts_window.present()
+
+    def _clear_shortcuts_window(self, *_args) -> bool:
+        self._shortcuts_window = None
+        return False
+
+    def _show_about(self, _action) -> None:
+        if self._about_dialog is None:
+            application = self.get_application()
+            dialog = Adw.AboutDialog.new()
+            dialog.set_application_name("Lewisham Walks")
+            dialog.set_application_icon(runtime_app_id())
+            dialog.set_developer_name("Nick Richards")
+            dialog.set_version(getattr(application, "version", "0.1.0"))
+            dialog.set_comments("Find overlooked local stories and turn them into walks around Lewisham.")
+            dialog.set_website("https://github.com/nedrichards/lewisham-walks")
+            dialog.set_issue_url("https://github.com/nedrichards/lewisham-walks/issues")
+            dialog.set_copyright("Copyright © 2026 Nick Richards")
+            dialog.set_license_type(Gtk.License.GPL_3_0)
+            dialog.add_link(
+                "Data Sources and Attribution",
+                "https://github.com/nedrichards/lewisham-walks/blob/main/DATA_SOURCES.md",
+            )
+            dialog.connect("closed", self._clear_about_dialog)
+            self._about_dialog = dialog
+        self._about_dialog.present(self)
+
+    def _clear_about_dialog(self, *_args) -> None:
+        self._about_dialog = None
 
     def _show_discovery_browser(self, _button) -> None:
         if self._stories_window is None:
@@ -531,6 +638,8 @@ class MainWindow(Adw.ApplicationWindow):
         self.toast_overlay.add_toast(Adw.Toast.new(f"Showing {display_title(discovery)} on the map."))
 
     def _generate_walk(self, _button) -> None:
+        if self._generating or self._locating_start:
+            return
         self._generation_id += 1
         generation_id = self._generation_id
         try:
@@ -639,6 +748,8 @@ class MainWindow(Adw.ApplicationWindow):
         self.try_another_button.set_sensitive(not generating and not self._locating_start)
         self.progress_box.set_visible(generating)
         if generating:
+            self.directions_page.set_visible(False)
+            self.directions_button.set_visible(False)
             self.progress_spinner.start()
             self.progress_label.set_text(message or "Generating walk...")
             self.summary.set_text("Generating walk...")
@@ -829,7 +940,77 @@ class MainWindow(Adw.ApplicationWindow):
 
         for index, visit in enumerate(plan.visits, start=1):
             self._append_visit_row(index, visit, plan)
+        self._render_directions(plan)
         self._render_map(plan)
+
+    def _clear_directions(self) -> None:
+        while child := self.directions_groups.get_first_child():
+            self.directions_groups.remove(child)
+        self.direction_leg_groups.clear()
+        self.direction_rows.clear()
+        self.directions_summary.set_text("")
+        self.directions_summary.remove_css_class("route-warning")
+        self.directions_page.set_visible(False)
+        self.directions_button.set_visible(False)
+
+    def _render_directions(self, plan: RoutePlan) -> None:
+        self._clear_directions()
+        if not plan.steps:
+            return
+
+        approximate = any("approximate guide" in warning.casefold() for warning in plan.warnings)
+        if approximate:
+            self.directions_summary.set_text(
+                "Live walking directions were unavailable. These steps connect the stops directly and do not follow roads."
+            )
+            self.directions_summary.add_css_class("route-warning")
+        else:
+            self.directions_summary.set_text(
+                "Follow the route between each stop. Check crossings and local conditions as you walk."
+            )
+
+        steps_by_leg: dict[int, list[RouteStep]] = {}
+        for step in plan.steps:
+            steps_by_leg.setdefault(step.leg_index, []).append(step)
+
+        direction_number = 1
+        for leg_index, steps in sorted(steps_by_leg.items()):
+            group = Adw.PreferencesGroup.new()
+            destination = plan.visits[leg_index] if leg_index < len(plan.visits) else None
+            group.set_title(f"To {self._visit_title(destination, plan)}" if destination is not None else "Continue")
+            leg_distance = sum(step.distance_m for step in steps)
+            leg_duration = sum(step.duration_s for step in steps)
+            group.set_description(f"{self._format_distance(leg_distance)} · {self._format_duration(leg_duration)}")
+            self.directions_groups.append(group)
+            self.direction_leg_groups.append(group)
+
+            for step in steps:
+                row = Adw.ActionRow.new()
+                row.set_use_markup(False)
+                row.set_title(step.instruction)
+                details = []
+                if step.distance_m > 0:
+                    details.append(self._format_distance(step.distance_m))
+                if step.duration_s > 0:
+                    details.append(self._format_duration(step.duration_s))
+                if details:
+                    row.set_subtitle(" · ".join(details))
+                row.set_activatable(False)
+                row.set_selectable(False)
+                badge = Gtk.Label.new(str(direction_number))
+                badge.add_css_class("route-badge")
+                badge.set_valign(Gtk.Align.CENTER)
+                row.add_prefix(badge)
+                group.add(row)
+                self.direction_rows.append(row)
+                direction_number += 1
+
+        self.directions_page.set_visible(True)
+        self.directions_button.set_visible(True)
+
+    def _show_directions_section(self, _button) -> None:
+        if self.directions_page.get_visible():
+            self._show_controls_page("directions")
 
     def _show_discovery_details(self, discovery: Discovery) -> None:
         self._show_detail_panel(
@@ -941,8 +1122,7 @@ class MainWindow(Adw.ApplicationWindow):
         row.visit = visit
         row.set_use_markup(False)
         discovery = next((item for item in plan.discoveries if item.id == visit.source_id), None)
-        title = display_title(discovery) if discovery is not None else visit.title
-        row.set_title(title)
+        row.set_title(self._visit_title(visit, plan))
         row.set_title_lines(2)
         row.set_subtitle(self._visit_subtitle(visit, discovery, plan))
         row.set_subtitle_lines(2)
@@ -958,6 +1138,10 @@ class MainWindow(Adw.ApplicationWindow):
         if discovery is not None:
             row.discovery = discovery
         self.result_list.append(row)
+
+    def _visit_title(self, visit: RouteVisit, plan: RoutePlan) -> str:
+        discovery = next((item for item in plan.discoveries if item.id == visit.source_id), None)
+        return display_title(discovery) if discovery is not None else visit.title
 
     def _on_result_row_activated(self, _list_box, row) -> None:
         if hasattr(row, "discovery"):

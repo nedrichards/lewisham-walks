@@ -91,6 +91,7 @@ class RouteStep:
     instruction: str
     distance_m: float
     duration_s: float
+    leg_index: int = 0
 
 
 @dataclass(frozen=True)

@@ -11,6 +11,13 @@ sys.path.insert(1, pkgdatadir)
 signal.signal(signal.SIGINT, signal.SIG_DFL)
 
 if __name__ == '__main__':
+    import gi
+
+    from gi.repository import Gio
+
+    resource = Gio.Resource.load(os.path.join(pkgdatadir, 'lewisham-walks.gresource'))
+    resource._register()
+
     from lewisham_walks.main import main
 
     sys.exit(main(VERSION))

@@ -4,7 +4,7 @@ Lewisham Walks is a GNOME app for finding overlooked local stories and turning t
 
 ![Lewisham Walks on the desktop](data/screenshots/lewisham-walks-desktop.png)
 
-Choose a postcode or a point on the map, a duration and a theme. The app selects nearby discoveries, can add a cafe or pub, requests a pedestrian route, and exports GPX. Moving the map repicks a spatially distributed set of stories from the full local corpus so the map remains useful for exploration.
+Choose a postcode or a point on the map, a duration and a theme. The app selects nearby discoveries, can add a cafe or pub, requests a pedestrian route, groups its walking directions between story stops, and exports GPX. Moving the map repicks a spatially distributed set of stories from the full local corpus so the map remains useful for exploration.
 
 The planner and bundled discoveries work locally. Keyless open services add current information:
 

@@ -57,8 +57,9 @@ class OpenStreetMapRoutingProvider:
                 instruction=_osrm_instruction(step),
                 distance_m=float(step.get("distance", 0)),
                 duration_s=float(step.get("duration", 0)),
+                leg_index=leg_index,
             )
-            for leg in route.get("legs", [])
+            for leg_index, leg in enumerate(route.get("legs", []))
             for step in leg.get("steps", [])
         ]
         return geometry, steps, float(route.get("distance", 0)), float(route.get("duration", 0))

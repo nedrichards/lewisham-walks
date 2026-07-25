@@ -1,5 +1,5 @@
 SIDEBAR = "sidebar-show-symbolic"
-PREFERENCES = "emblem-system-symbolic"
+MENU = "open-menu-symbolic"
 EXPORT = "document-save-symbolic"
 STORIES = "view-list-symbolic"
 CURRENT_LOCATION = "find-location-symbolic"
@@ -14,7 +14,7 @@ MAP_MARKER = "media-record-symbolic"
 REQUIRED_ICON_NAMES = frozenset(
     {
         SIDEBAR,
-        PREFERENCES,
+        MENU,
         EXPORT,
         STORIES,
         CURRENT_LOCATION,

@@ -17,6 +17,14 @@ configure_file(
   install_dir: get_option('bindir'),
 )
 
+gnome.compile_resources(
+  'lewisham-walks',
+  'lewisham-walks.gresource.xml',
+  gresource_bundle: true,
+  install: true,
+  install_dir: pkgdatadir,
+)
+
 install_data(
   [
     'lewisham_walks/__init__.py',
@@ -53,6 +61,11 @@ install_data(
     'lewisham_walks/ui/discovery_browser_window.py',
     'lewisham_walks/ui/preferences_window.py',
   ],
+  install_dir: moduledir / 'ui',
+)
+
+install_data(
+  'lewisham_walks/ui/shortcuts-window.ui',
   install_dir: moduledir / 'ui',
 )
 

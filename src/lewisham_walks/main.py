@@ -18,6 +18,35 @@ class LewishamWalksApp(Adw.Application):
         super().__init__(application_id=runtime_app_id(), flags=Gio.ApplicationFlags.DEFAULT_FLAGS)
         self.version = version
         self._main_window: MainWindow | None = None
+        self._create_actions()
+
+    def _create_actions(self) -> None:
+        window_actions = {
+            "preferences": ("_show_preferences", ["<primary>comma"]),
+            "shortcuts": ("_show_shortcuts", ["question", "<primary><shift>slash"]),
+            "about": ("_show_about", []),
+            "stories": ("_show_discovery_browser", ["<primary>l"]),
+            "export": ("_export_gpx", ["<primary>e"]),
+            "generate": ("_generate_walk", ["<primary>Return"]),
+            "toggle-sidebar": ("_toggle_sidebar", ["F9"]),
+        }
+        for name, (method_name, accelerators) in window_actions.items():
+            action = Gio.SimpleAction.new(name, None)
+            action.connect("activate", self._activate_window_action, method_name)
+            self.add_action(action)
+            if accelerators:
+                self.set_accels_for_action(f"app.{name}", accelerators)
+
+        quit_action = Gio.SimpleAction.new("quit", None)
+        quit_action.connect("activate", lambda *_args: self.quit())
+        self.add_action(quit_action)
+        self.set_accels_for_action("app.quit", ["<primary>q"])
+
+    def _activate_window_action(self, _action, _parameter, method_name: str) -> None:
+        if self._main_window is None:
+            self.activate()
+        if self._main_window is not None:
+            getattr(self._main_window, method_name)(None)
 
     def do_activate(self) -> None:
         self._load_styles()

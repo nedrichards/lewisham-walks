@@ -25,14 +25,19 @@ from lewisham_walks.ui.main_window import MainWindow
 
 def main() -> int:
     if len(sys.argv) not in (2, 4, 5):
-        raise SystemExit("usage: capture_ui.py OUTPUT.png [WIDTH HEIGHT [plan|results|route|map|stories]]")
+        raise SystemExit(
+            "usage: capture_ui.py OUTPUT.png [WIDTH HEIGHT "
+            "[plan|results|route|directions|map|stories|shortcuts]]"
+        )
     output = Path(sys.argv[1]).resolve()
     width, height = (int(sys.argv[2]), int(sys.argv[3])) if len(sys.argv) == 4 else (1440, 820)
     if len(sys.argv) == 5:
         width, height = int(sys.argv[2]), int(sys.argv[3])
     page = sys.argv[4] if len(sys.argv) == 5 else "plan"
-    if page not in {"plan", "results", "route", "map", "stories"}:
-        raise SystemExit("page must be 'plan', 'results', 'route', 'map' or 'stories'")
+    if page not in {"plan", "results", "route", "directions", "map", "stories", "shortcuts"}:
+        raise SystemExit(
+            "page must be 'plan', 'results', 'route', 'directions', 'map', 'stories' or 'shortcuts'"
+        )
     Adw.init()
     settings = Gtk.Settings.get_default()
     if settings is not None:
@@ -54,7 +59,7 @@ def main() -> int:
     else:
         target_window = window
         window._apply_responsive_layout(width, height)
-        if page == "route":
+        if page in {"route", "directions"}:
             plan = RoutePlanner(window.all_discoveries).plan(
                 RouteRequest(
                     start=Coordinate(51.462, -0.010),
@@ -63,7 +68,13 @@ def main() -> int:
                 )
             )
             window._render_plan(plan)
-        window._show_controls_page("results" if page in {"results", "route"} else "planner")
+        window._show_controls_page(
+            "directions" if page == "directions" else "results" if page in {"results", "route"} else "planner"
+        )
+        if page == "shortcuts":
+            window.present()
+            window._show_shortcuts(None)
+            target_window = window._shortcuts_window
     target_window.set_default_size(width, height)
     target_window.present()
     loop = GLib.MainLoop.new(None, False)
@@ -78,7 +89,15 @@ def main() -> int:
     def capture() -> bool:
         width = target_window.get_width()
         height = target_window.get_height()
-        content = target_window.get_content()
+        content = (
+            target_window
+            if page == "shortcuts"
+            else target_window.get_content()
+            if hasattr(target_window, "get_content")
+            else target_window.get_child()
+        )
+        if content is None:
+            raise RuntimeError("Window did not expose any content to capture")
         paintable = Gtk.WidgetPaintable.new(content)
         snapshot = Gtk.Snapshot.new()
         paintable.snapshot(snapshot, width, height)

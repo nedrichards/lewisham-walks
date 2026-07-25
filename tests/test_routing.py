@@ -15,12 +15,20 @@ class FakeResponse:
                 "distance": 820.4,
                 "duration": 610.0,
                 "geometry": {"coordinates": [[-0.01, 51.46], [-0.02, 51.47]]},
-                "legs": [{"steps": [{
-                    "distance": 120,
-                    "duration": 90,
-                    "name": "Lewisham Way",
-                    "maneuver": {"type": "turn", "modifier": "left"},
-                }]}],
+                "legs": [
+                    {"steps": [{
+                        "distance": 120,
+                        "duration": 90,
+                        "name": "Lewisham Way",
+                        "maneuver": {"type": "turn", "modifier": "left"},
+                    }]},
+                    {"steps": [{
+                        "distance": 80,
+                        "duration": 60,
+                        "name": "Ladywell Road",
+                        "maneuver": {"type": "continue", "modifier": "straight"},
+                    }]},
+                ],
             }],
         }
 
@@ -45,6 +53,7 @@ class OpenStreetMapRoutingTests(unittest.TestCase):
 
         self.assertEqual([start, end], geometry)
         self.assertEqual("Turn left onto Lewisham Way", steps[0].instruction)
+        self.assertEqual([0, 1], [step.leg_index for step in steps])
         self.assertEqual(820.4, distance)
         self.assertEqual(610.0, duration)
         self.assertIn("routed-foot", session.request[0])

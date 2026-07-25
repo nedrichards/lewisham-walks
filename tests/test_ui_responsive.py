@@ -249,7 +249,10 @@ class MainWindowResponsiveTests(unittest.TestCase):
             visits=visits,
             waypoints=[request.start, story.coordinate, request.start],
             geometry=[request.start, story.coordinate, request.start],
-            steps=[RouteStep("Turn-by-turn detail", 1200, 900)],
+            steps=[
+                RouteStep("Turn left onto Lewisham Way", 700, 540, leg_index=0),
+                RouteStep("Return along Lewisham Way", 500, 360, leg_index=1),
+            ],
             distance_m=1200,
             walking_seconds=900,
             dwell_seconds=180,
@@ -271,6 +274,19 @@ class MainWindowResponsiveTests(unittest.TestCase):
         self.assertEqual(rows[0].get_title(), story.title)
         self.assertNotIn(story.description, rows[0].get_subtitle())
         self.assertEqual(rows[1].get_subtitle(), "End of walk")
+        self.assertTrue(self.window.directions_page.get_visible())
+        self.assertTrue(self.window.directions_button.get_visible())
+        self.assertEqual(
+            ["To A useful local story", "To Return to start"],
+            [group.get_title() for group in self.window.direction_leg_groups],
+        )
+        self.assertEqual(
+            ["Turn left onto Lewisham Way", "Return along Lewisham Way"],
+            [row.get_title() for row in self.window.direction_rows],
+        )
+
+        self.window._show_directions_section(None)
+        self.assertEqual("directions", self.window.controls_stack.get_visible_child_name())
 
         self.window._show_discovery_details(story)
         detail_children = []
@@ -279,6 +295,11 @@ class MainWindowResponsiveTests(unittest.TestCase):
             detail_children.append(child)
             child = child.get_next_sibling()
         self.assertEqual(len(detail_children), 2)
+
+        plan.warnings.append("Live walking directions were unavailable, so this route is an approximate guide.")
+        self.window._render_directions(plan)
+        self.assertTrue(self.window.directions_summary.has_css_class("route-warning"))
+        self.assertIn("do not follow roads", self.window.directions_summary.get_text())
 
     def test_compact_layout_releases_the_desktop_minimum_width(self) -> None:
         self.window._apply_responsive_layout(390, 780)
@@ -339,6 +360,28 @@ class MainWindowResponsiveTests(unittest.TestCase):
             preferences_type.assert_called_once_with(self.window)
             self.assertEqual(2, preferences_type.return_value.present.call_count)
 
+    def test_primary_menu_and_standard_dialogs_use_native_gnome_patterns(self) -> None:
+        self.assertEqual(3, self.window.menu_button.get_menu_model().get_n_items())
+
+        self.window._show_shortcuts(None)
+        shortcuts_window = self.window._shortcuts_window
+        self.assertIsInstance(shortcuts_window, Gtk.ShortcutsWindow)
+        self.assertIs(shortcuts_window.get_transient_for(), self.window)
+        self.window._show_shortcuts(None)
+        self.assertIs(shortcuts_window, self.window._shortcuts_window)
+
+        self.window._show_about(None)
+        about_dialog = self.window._about_dialog
+        self.assertIsInstance(about_dialog, Adw.AboutDialog)
+        self.assertEqual("Lewisham Walks", about_dialog.get_application_name())
+        self.assertEqual("Nick Richards", about_dialog.get_developer_name())
+
+        shortcuts_window.close()
+        about_dialog.close()
+        self._flush()
+        self.assertIsNone(self.window._shortcuts_window)
+        self.assertIsNone(self.window._about_dialog)
+
     def test_closed_story_browser_is_released_for_a_fresh_window(self) -> None:
         self.window._show_discovery_browser(None)
         browser = self.window._stories_window
@@ -382,6 +425,26 @@ class MainWindowResponsiveTests(unittest.TestCase):
 
 @unittest.skipUnless(Adw is not None, f"GTK runtime unavailable: {GTK_IMPORT_ERROR}")
 class ApplicationWindowTests(unittest.TestCase):
+    def test_application_registers_actions_and_accelerators_once(self) -> None:
+        app = LewishamWalksApp("test")
+        self.addCleanup(app.quit)
+        expected_accelerators = {
+            "preferences": "<Control>comma",
+            "shortcuts": "question",
+            "stories": "<Control>l",
+            "export": "<Control>e",
+            "generate": "<Control>Return",
+            "toggle-sidebar": "F9",
+            "quit": "<Control>q",
+        }
+
+        for name in (*expected_accelerators, "about"):
+            with self.subTest(action=name):
+                self.assertIsNotNone(app.lookup_action(name))
+        for name, accelerator in expected_accelerators.items():
+            with self.subTest(accelerator=name):
+                self.assertIn(accelerator, app.get_accels_for_action(f"app.{name}"))
+
     def test_repeated_activation_reuses_the_primary_window(self) -> None:
         app = LewishamWalksApp("test")
         self.addCleanup(app.quit)
