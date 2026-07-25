@@ -359,6 +359,26 @@ class MainWindowResponsiveTests(unittest.TestCase):
         focus_discovery.assert_called_once_with(discovery)
         self.assertFalse(self.window.split_view.get_show_sidebar())
 
+    def test_selectable_map_points_use_the_normal_selection_cursor(self) -> None:
+        map_widget = self.window.map_widget
+        if not hasattr(map_widget, "_point_marker"):
+            self.skipTest("Libshumate map markers are unavailable")
+
+        markers = (
+            map_widget._point_marker(self.window.all_discoveries[0]),
+            map_widget._label_marker(
+                RouteVisit(kind="cafe", title="A cafe", coordinate=Coordinate(51.46, -0.01)),
+                "C",
+                "A cafe",
+            ),
+        )
+
+        for marker in markers:
+            with self.subTest(marker=marker):
+                cursor = marker.get_child().get_cursor()
+                self.assertIsNotNone(cursor)
+                self.assertEqual("default", cursor.get_name())
+
 
 @unittest.skipUnless(Adw is not None, f"GTK runtime unavailable: {GTK_IMPORT_ERROR}")
 class ApplicationWindowTests(unittest.TestCase):

@@ -37,6 +37,7 @@ from .layout import MAP_COMPACT_MIN_HEIGHT, MAP_COMPACT_MIN_WIDTH
 
 DiscoveryCallback = Callable[[Discovery], None]
 VisitCallback = Callable[[RouteVisit], None]
+POI_SELECT_CURSOR = "default"
 
 
 def create_map_widget(
@@ -329,7 +330,10 @@ class ShumateDiscoveryMapWidget(Gtk.Box):
         button.add_css_class("map-pin")
         if discovery.collection == "lewisham-maroon":
             button.add_css_class("local")
-        button.set_sensitive(self._discovery_selection_enabled and self._discovery_selected_callback is not None)
+        selectable = self._discovery_selection_enabled and self._discovery_selected_callback is not None
+        button.set_sensitive(selectable)
+        if selectable:
+            button.set_cursor_from_name(POI_SELECT_CURSOR)
         if self._discovery_selected_callback is not None:
             button.connect("clicked", lambda _button, current=discovery: self._discovery_selected_callback(current))
         marker.set_child(button)
@@ -345,16 +349,21 @@ class ShumateDiscoveryMapWidget(Gtk.Box):
         child.set_size_request(28, 28)
         child.set_tooltip_text(tooltip)
 
+        selectable = False
         if isinstance(marker_item, Discovery):
-            child.set_sensitive(self._discovery_selection_enabled and self._discovery_selected_callback is not None)
+            selectable = self._discovery_selection_enabled and self._discovery_selected_callback is not None
+            child.set_sensitive(selectable)
             if self._discovery_selected_callback is not None:
                 child.connect("clicked", lambda _button, current=marker_item: self._discovery_selected_callback(current))
         elif isinstance(marker_item, RouteVisit):
-            child.set_sensitive(self._visit_selected_callback is not None)
+            selectable = self._visit_selected_callback is not None
+            child.set_sensitive(selectable)
             if self._visit_selected_callback is not None:
                 child.connect("clicked", lambda _button, current=marker_item: self._visit_selected_callback(current))
         else:
             child.set_sensitive(False)
+        if selectable:
+            child.set_cursor_from_name(POI_SELECT_CURSOR)
 
         child.add_css_class("osd")
         child.add_css_class("route-marker")
