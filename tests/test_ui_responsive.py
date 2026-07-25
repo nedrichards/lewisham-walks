@@ -329,6 +329,7 @@ class MainWindowResponsiveTests(unittest.TestCase):
             browser_type.assert_called_once_with(
                 self.window,
                 [*self.window.all_discoveries, *self.window.all_blossom_points],
+                self.window._show_discovery_on_map,
             )
             self.assertEqual(2, browser_type.return_value.present.call_count)
 
@@ -337,6 +338,26 @@ class MainWindowResponsiveTests(unittest.TestCase):
             self.window._show_preferences(None)
             preferences_type.assert_called_once_with(self.window)
             self.assertEqual(2, preferences_type.return_value.present.call_count)
+
+    def test_closed_story_browser_is_released_for_a_fresh_window(self) -> None:
+        self.window._show_discovery_browser(None)
+        browser = self.window._stories_window
+        self.assertIsNotNone(browser)
+
+        browser.close()
+        self._flush()
+
+        self.assertIsNone(self.window._stories_window)
+
+    def test_story_browser_handoff_focuses_the_map(self) -> None:
+        discovery = self.window.all_discoveries[0]
+        self.window.split_view.set_show_sidebar(True)
+
+        with mock.patch.object(self.window.map_widget, "focus_discovery") as focus_discovery:
+            self.window._show_discovery_on_map(discovery)
+
+        focus_discovery.assert_called_once_with(discovery)
+        self.assertFalse(self.window.split_view.get_show_sidebar())
 
 
 @unittest.skipUnless(Adw is not None, f"GTK runtime unavailable: {GTK_IMPORT_ERROR}")
@@ -366,14 +387,40 @@ class PlaqueBrowserResponsiveTests(unittest.TestCase):
         self.window = DiscoveryBrowserWindow(self.parent, [])
         self.addCleanup(self.window.destroy)
 
-    def test_browser_switches_to_stacked_layout_on_narrow_widths(self) -> None:
-        self.window._apply_responsive_layout(900)
-        self.assertEqual(self.window.root.get_orientation(), Gtk.Orientation.HORIZONTAL)
-        self.assertEqual(self.window.left.get_size_request(), (324, -1))
+    def _flush(self) -> None:
+        context = GLib.MainContext.default()
+        for _ in range(8):
+            while context.pending():
+                context.iteration(False)
 
-        self.window._apply_responsive_layout(720)
-        self.assertEqual(self.window.root.get_orientation(), Gtk.Orientation.VERTICAL)
-        self.assertEqual(self.window.left.get_size_request(), (-1, 220))
+    def test_browser_uses_an_overlay_list_in_compact_layout(self) -> None:
+        self.window.set_default_size(390, 720)
+        self.window.present()
+        self._flush()
+
+        self.assertIs(self.window.get_current_breakpoint(), self.window.compact_breakpoint)
+        self.assertTrue(self.window.split_view.get_collapsed())
+        self.assertFalse(self.window.split_view.get_pin_sidebar())
+        self.assertTrue(self.window.split_view.get_show_sidebar())
+
+    def test_browser_pins_the_list_beside_details_on_desktop(self) -> None:
+        self.window.set_default_size(960, 680)
+        self.window.present()
+        self._flush()
+
+        self.assertFalse(self.window.split_view.get_collapsed())
+        self.assertTrue(self.window.split_view.get_pin_sidebar())
+        self.assertTrue(self.window.split_view.get_show_sidebar())
+
+    def test_explicit_close_action_destroys_the_window(self) -> None:
+        close_requests = []
+        self.window.connect("close-request", lambda *_args: close_requests.append(True) and False)
+        self.window.present()
+
+        self.window.close_button.emit("clicked")
+        self._flush()
+
+        self.assertEqual(close_requests, [True])
 
     def test_browser_presents_different_discovery_kinds(self) -> None:
         plaque = Discovery(
@@ -390,7 +437,45 @@ class PlaqueBrowserResponsiveTests(unittest.TestCase):
 
         self.assertEqual({DiscoveryKind.PLAQUE, DiscoveryKind.BLOSSOM}, {item.kind for item in browser._all_discoveries})
         browser._show_discovery(blossom)
-        self.assertEqual("A tree", browser.details_group.get_title())
+        self.assertEqual("A tree", browser.detail_title.get_text())
+        self.assertEqual("Blossom walk", browser.kind_value.get_text())
+        self.assertFalse(hasattr(browser, "details_group"))
+
+        browser.filter_dropdown.set_selected(1)
+        self._flush()
+        self.assertEqual([blossom], browser._visible_discoveries)
+
+        browser.search_entry.set_text("missing place")
+        browser._apply_filter()
+        self._flush()
+        self.assertEqual([], browser._visible_discoveries)
+        self.assertEqual("Try another search", browser.detail_title.get_text())
+
+    def test_compact_story_activation_reveals_details(self) -> None:
+        discovery = Discovery("story", "A story", "Details", Coordinate(51.46, -0.01))
+        browser = DiscoveryBrowserWindow(self.parent, [discovery])
+        self.addCleanup(browser.destroy)
+        browser.split_view.set_collapsed(True)
+        browser.split_view.set_show_sidebar(True)
+
+        browser.list_box.emit("row-activated", browser.list_box.get_first_child())
+
+        self.assertFalse(browser.split_view.get_show_sidebar())
+        self.assertEqual("A story", browser.detail_title.get_text())
+
+    def test_show_on_map_hands_the_selected_story_back_and_closes(self) -> None:
+        discovery = Discovery("story", "A story", "Details", Coordinate(51.46, -0.01))
+        on_show_on_map = mock.Mock()
+        browser = DiscoveryBrowserWindow(self.parent, [discovery], on_show_on_map)
+        close_requests = []
+        browser.connect("close-request", lambda *_args: close_requests.append(True) and False)
+        browser.present()
+
+        browser.show_on_map_button.emit("clicked")
+        self._flush()
+
+        on_show_on_map.assert_called_once_with(discovery)
+        self.assertEqual(close_requests, [True])
 
 
 if __name__ == "__main__":

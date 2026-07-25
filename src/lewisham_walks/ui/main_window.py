@@ -503,20 +503,32 @@ class MainWindow(Adw.ApplicationWindow):
     def _show_preferences(self, _button) -> None:
         if self._preferences_window is None:
             self._preferences_window = PreferencesWindow(self)
-            self._preferences_window.connect("destroy", self._clear_preferences_window)
+            self._preferences_window.connect("close-request", self._clear_preferences_window)
         self._preferences_window.present()
 
-    def _clear_preferences_window(self, *_args) -> None:
+    def _clear_preferences_window(self, *_args) -> bool:
         self._preferences_window = None
+        return False
 
     def _show_discovery_browser(self, _button) -> None:
         if self._stories_window is None:
-            self._stories_window = DiscoveryBrowserWindow(self, [*self.all_discoveries, *self.all_blossom_points])
-            self._stories_window.connect("destroy", self._clear_stories_window)
+            self._stories_window = DiscoveryBrowserWindow(
+                self,
+                [*self.all_discoveries, *self.all_blossom_points],
+                self._show_discovery_on_map,
+            )
+            self._stories_window.connect("close-request", self._clear_stories_window)
         self._stories_window.present()
 
-    def _clear_stories_window(self, *_args) -> None:
+    def _clear_stories_window(self, *_args) -> bool:
         self._stories_window = None
+        return False
+
+    def _show_discovery_on_map(self, discovery: Discovery) -> None:
+        if hasattr(self.map_widget, "focus_discovery"):
+            self.map_widget.focus_discovery(discovery)
+        self.split_view.set_show_sidebar(False)
+        self.toast_overlay.add_toast(Adw.Toast.new(f"Showing {display_title(discovery)} on the map."))
 
     def _generate_walk(self, _button) -> None:
         self._generation_id += 1

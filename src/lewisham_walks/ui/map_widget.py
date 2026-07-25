@@ -69,6 +69,7 @@ class ShumateDiscoveryMapWidget(Gtk.Box):
         self._plan: RoutePlan | None = None
         self._picked_start: Coordinate | None = None
         self._picked_end: Coordinate | None = None
+        self._focused_discovery: Discovery | None = None
         self._location_selected_callback: Callable[[Coordinate], None] | None = None
         self._discovery_selected_callback: DiscoveryCallback | None = None
         self._visit_selected_callback: VisitCallback | None = None
@@ -113,6 +114,7 @@ class ShumateDiscoveryMapWidget(Gtk.Box):
 
     def set_plan(self, plan: RoutePlan | None) -> None:
         self._plan = plan
+        self._focused_discovery = None
         self._route_layer.remove_all()
         self._marker_layer.remove_all()
         self._selection_layer.remove_all()
@@ -157,6 +159,12 @@ class ShumateDiscoveryMapWidget(Gtk.Box):
         self._picked_start = start
         self._picked_end = end
         self._render_picked_locations()
+
+    def focus_discovery(self, discovery: Discovery) -> None:
+        self._focused_discovery = discovery
+        self._render_picked_locations()
+        self._map.go_to_full(discovery.coordinate.lat, discovery.coordinate.lon, 16.0)
+        self._schedule_discovery_refresh()
 
     def _set_default_map_source(self) -> None:
         map_source = self._create_vector_map_source(self._dark)
@@ -290,6 +298,8 @@ class ShumateDiscoveryMapWidget(Gtk.Box):
 
     def _render_picked_locations(self) -> None:
         self._selection_layer.remove_all()
+        if self._focused_discovery is not None:
+            self._selection_layer.add_marker(self._point_marker(self._focused_discovery))
         if self._picked_start is not None:
             self._selection_layer.add_marker(
                 self._label_marker(RouteVisit(kind="start", title="Picked start", coordinate=self._picked_start), "S", "Picked start")
@@ -393,6 +403,7 @@ class DiscoveryMapWidget(Gtk.DrawingArea):
         self._plan: RoutePlan | None = None
         self._picked_start: Coordinate | None = None
         self._picked_end: Coordinate | None = None
+        self._focused_discovery: Discovery | None = None
         self._location_selected_callback: Callable[[Coordinate], None] | None = None
         self._discovery_selected_callback: DiscoveryCallback | None = None
         self._visit_selected_callback: VisitCallback | None = None
@@ -414,6 +425,7 @@ class DiscoveryMapWidget(Gtk.DrawingArea):
 
     def set_plan(self, plan: RoutePlan | None) -> None:
         self._plan = plan
+        self._focused_discovery = None
         self.queue_draw()
 
     def set_discoveries(
@@ -443,6 +455,10 @@ class DiscoveryMapWidget(Gtk.DrawingArea):
         self._picked_end = end
         self.queue_draw()
 
+    def focus_discovery(self, discovery: Discovery) -> None:
+        self._focused_discovery = discovery
+        self.queue_draw()
+
     def _draw(self, _area, context, width: int, height: int) -> None:
         self._last_width = width
         self._last_height = height
@@ -456,6 +472,8 @@ class DiscoveryMapWidget(Gtk.DrawingArea):
         self._draw_caption(context, width, height)
 
     def _current_bounds(self) -> MapBounds:
+        if self._focused_discovery is not None:
+            return coordinate_bounds([self._focused_discovery.coordinate])
         coordinates = [discovery.coordinate for discovery in self._discoveries]
         if self._plan is not None:
             coordinates.extend(self._plan.geometry)
@@ -509,6 +527,12 @@ class DiscoveryMapWidget(Gtk.DrawingArea):
                 radius = 3.2
             context.arc(x, y, radius, 0, math.tau)
             context.fill()
+        if self._focused_discovery is not None:
+            x, y = project_coordinate(self._focused_discovery.coordinate, bounds, width, height)
+            context.set_source_rgb(0.20, 0.52, 0.88)
+            context.set_line_width(3)
+            context.arc(x, y, 9, 0, math.tau)
+            context.stroke()
 
     def _draw_plan(self, context, plan: RoutePlan, bounds: MapBounds, width: int, height: int) -> None:
         route = plan.geometry or plan.waypoints

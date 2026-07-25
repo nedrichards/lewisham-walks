@@ -23,12 +23,13 @@ class LewishamWalksApp(Adw.Application):
         self._load_styles()
         if self._main_window is None:
             self._main_window = MainWindow(self)
-            self._main_window.connect("destroy", self._on_main_window_destroyed)
+            self._main_window.connect("close-request", self._on_main_window_close_requested)
         self._main_window.present()
 
-    def _on_main_window_destroyed(self, window) -> None:
+    def _on_main_window_close_requested(self, window) -> bool:
         if self._main_window is window:
             self._main_window = None
+        return False
 
     def _load_styles(self) -> None:
         if getattr(self, "_styles_loaded", False):
@@ -48,6 +49,7 @@ class LewishamWalksApp(Adw.Application):
             .route-badge { background: alpha(@accent_bg_color, .14); color: @accent_color; border-radius: 999px; min-width: 28px; min-height: 28px; margin: 0 4px 0 2px; font-weight: bold; }
             .route-detail { padding: 14px; }
             .route-warning { background: alpha(@warning_bg_color, .14); color: @warning_color; border-radius: 10px; padding: 10px 12px; }
+            .story-facts { border-top: 1px solid alpha(currentColor, .14); padding-top: 14px; }
             """
         )
         display = Gdk.Display.get_default()
