@@ -9,13 +9,13 @@ gi.require_version("Gtk", "4.0")
 
 from gi.repository import Adw, Gdk, Gio, Gtk
 
-from . import APP_ID
+from . import runtime_app_id
 from .ui.main_window import MainWindow
 
 
 class LewishamWalksApp(Adw.Application):
     def __init__(self, version: str) -> None:
-        super().__init__(application_id=APP_ID, flags=Gio.ApplicationFlags.DEFAULT_FLAGS)
+        super().__init__(application_id=runtime_app_id(), flags=Gio.ApplicationFlags.DEFAULT_FLAGS)
         self.version = version
         self._main_window: MainWindow | None = None
 
