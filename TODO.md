@@ -10,6 +10,7 @@ Lewisham Walks remains a small, GNOME-first app for discovering Lewisham and its
 - [ ] Complete a keyboard and accessibility pass: accessible names, focus order, large text, high contrast and screen-reader behaviour.
 - [ ] Make CI run the GTK tests with real Libshumate rather than skipping that integration when no display is available.
 - [ ] Add cancellation for route generation and clearer progress stages for postcode, amenity and routing requests.
+- [ ] Profile repeated pan, route and day/night transitions for memory retention before considering a persistent rendered-map snapshot cache.
 
 ## Before the first release
 

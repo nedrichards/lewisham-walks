@@ -111,7 +111,10 @@ class ShumateDiscoveryMapWidget(Gtk.Box):
         self._map_view.add_overlay_layer(self._selection_layer)
         self._render_all_discoveries()
         self._render_picked_locations()
-        self._centre_on(self._all_coordinates(), 13.0)
+        # Start with Lewisham itself as the visual anchor. The featured points
+        # deliberately include useful border context, but fitting all of them
+        # would make Greenwich and Southwark dominate the initial viewport.
+        self._centre_on([], 13.0)
 
     def set_plan(self, plan: RoutePlan | None) -> None:
         self._plan = plan
@@ -138,7 +141,8 @@ class ShumateDiscoveryMapWidget(Gtk.Box):
         self._selection_layer.remove_all()
         self._render_all_discoveries()
         self._render_picked_locations()
-        self._centre_on(self._all_coordinates(), 13.0)
+        # Changing the discovery filter should not throw away the user's map
+        # position or force the same vector tiles to be rendered again.
         self._schedule_discovery_refresh()
 
     def set_location_selected_callback(self, callback: Callable[[Coordinate], None] | None) -> None:

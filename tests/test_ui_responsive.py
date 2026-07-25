@@ -142,6 +142,22 @@ class MainWindowResponsiveTests(unittest.TestCase):
         self.assertTrue(self.window.split_view.get_show_sidebar())
         self.assertTrue(self.window.postcode_entry.get_text().startswith("Map point "))
 
+    def test_map_opens_on_lewisham_and_filter_changes_preserve_the_viewport(self) -> None:
+        map_widget = self.window.map_widget
+        if not hasattr(map_widget, "_viewport"):
+            self.skipTest("Libshumate viewport is unavailable")
+
+        self.assertAlmostEqual(51.462, map_widget._viewport.get_latitude(), delta=0.02)
+        self.assertAlmostEqual(-0.010, map_widget._viewport.get_longitude(), delta=0.02)
+        map_widget._viewport.set_location(51.475, -0.045)
+        map_widget._viewport.set_zoom_level(15.0)
+
+        map_widget.set_discoveries(self.window.discoveries[:4], self.window.all_discoveries)
+
+        self.assertAlmostEqual(51.475, map_widget._viewport.get_latitude())
+        self.assertAlmostEqual(-0.045, map_widget._viewport.get_longitude())
+        self.assertAlmostEqual(15.0, map_widget._viewport.get_zoom_level())
+
     def test_current_location_is_shown_as_a_postcode_and_remembered(self) -> None:
         coordinate = Coordinate(51.462, -0.010)
 

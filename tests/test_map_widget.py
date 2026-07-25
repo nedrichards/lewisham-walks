@@ -109,7 +109,7 @@ class MapProjectionTests(unittest.TestCase):
 
 
 class MapStyleTests(unittest.TestCase):
-    def test_dark_style_reuses_the_same_open_vector_tiles(self):
+    def test_day_and_night_styles_share_the_libshumate_tile_cache_key(self):
         day_source = vector_map_style(False)["sources"]["openmaptiles"]
         night_source = vector_map_style(True)["sources"]["openmaptiles"]
 
