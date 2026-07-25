@@ -7,7 +7,7 @@ import gi
 gi.require_version("Adw", "1")
 gi.require_version("Gtk", "4.0")
 
-from gi.repository import Adw, Gdk, Gio, Gtk
+from gi.repository import Adw, Gdk, Gio, GLib, Gtk
 
 from . import runtime_app_id
 from .ui.main_window import MainWindow
@@ -50,10 +50,13 @@ class LewishamWalksApp(Adw.Application):
 
     def do_activate(self) -> None:
         self._load_styles()
+        created = self._main_window is None
         if self._main_window is None:
             self._main_window = MainWindow(self)
             self._main_window.connect("close-request", self._on_main_window_close_requested)
         self._main_window.present()
+        if created:
+            GLib.idle_add(self._main_window.request_initial_start_location)
 
     def _on_main_window_close_requested(self, window) -> bool:
         if self._main_window is window:

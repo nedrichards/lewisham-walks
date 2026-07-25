@@ -4,7 +4,7 @@ Lewisham Walks is a GNOME app for finding overlooked local stories and turning t
 
 ![Lewisham Walks on the desktop](data/screenshots/lewisham-walks-desktop.png)
 
-Choose a postcode or a point on the map, a duration and a theme. The app selects nearby discoveries, can add a cafe or pub, requests a pedestrian route, groups its walking directions between story stops, and exports GPX. Moving the map repicks a spatially distributed set of stories from the full local corpus so the map remains useful for exploration.
+Choose a postcode or a point on the map, a duration and a theme. The app restores the last successfully used start postcode; on first use it can ask the desktop for an approximate location and turn that into a UK postcode, falling back to central Lewisham. It then selects nearby discoveries, can add a cafe or pub, requests a pedestrian route, groups its walking directions between story stops, and exports GPX. Moving the map repicks a spatially distributed set of stories from the full local corpus so the map remains useful for exploration.
 
 The planner and bundled discoveries work locally. Keyless open services add current information:
 
@@ -52,7 +52,9 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the complete validation gate.
 
 ## Data and privacy
 
-Bundled plaques and blossom points can be explored without sending their coordinates anywhere. A route request sends the selected coordinates to the routing service. Postcode lookup sends the entered postcode to Postcodes.io; cafe and pub lookup sends the search area to OpenStreetMap services. Lewisham Walks has no account system or analytics.
+Bundled plaques and blossom points can be explored without sending their coordinates anywhere. If location permission is granted, the desktop-provided coordinate is sent to Postcodes.io solely to find the nearest UK postcode. Manual postcode lookup also uses Postcodes.io; a route request sends selected coordinates to the routing service, while cafe and pub lookup sends the search area to OpenStreetMap services.
+
+The app stores one last successfully used start postcode in desktop settings, not a location history; map-picked coordinates are not remembered. Libshumate keeps downloaded vector tiles in the application's cache so revisiting Lewisham avoids unnecessary network traffic and can reuse available tiles offline. Lewisham Walks has no account system or analytics.
 
 The generated discovery data has source-specific terms which are separate from the application code licence. See [DATA_SOURCES.md](DATA_SOURCES.md) before redistributing or regenerating it.
 

@@ -33,3 +33,24 @@ class PostcodesIoGeocoder:
         if not result:
             raise GeocodingError("Postcode not found.")
         return Coordinate(lat=float(result["latitude"]), lon=float(result["longitude"]))
+
+    def reverse_lookup_postcode(self, coordinate: Coordinate) -> str:
+        """Return the nearest UK postcode to a WGS84 coordinate."""
+        response = self._session.get(
+            "https://api.postcodes.io/postcodes",
+            params={
+                "lon": coordinate.lon,
+                "lat": coordinate.lat,
+                "limit": 1,
+                "radius": 2000,
+            },
+            timeout=10,
+        )
+        response.raise_for_status()
+        results = response.json().get("result") or []
+        if not results or not results[0].get("postcode"):
+            raise GeocodingError("No nearby UK postcode was found.")
+        try:
+            return normalise_postcode(results[0]["postcode"])
+        except ValueError as error:
+            raise GeocodingError("The location service did not return a valid UK postcode.") from error

@@ -56,12 +56,13 @@ class FakeSettings:
     def __init__(self) -> None:
         self._doubles = {"walking-speed-kmh": 4.8}
         self._string_lists = {"seen-story-ids": []}
+        self._strings = {}
 
     def get_string(self, key: str) -> str:
-        return ""
+        return self._strings.get(key, "")
 
     def set_string(self, key: str, value: str) -> None:
-        pass
+        self._strings[key] = value
 
     def get_double(self, key: str) -> float:
         return self._doubles.get(key, 0.0)
@@ -140,6 +141,63 @@ class MainWindowResponsiveTests(unittest.TestCase):
         self.window._on_map_location_selected(Coordinate(51.462, -0.010))
         self.assertTrue(self.window.split_view.get_show_sidebar())
         self.assertTrue(self.window.postcode_entry.get_text().startswith("Map point "))
+
+    def test_current_location_is_shown_as_a_postcode_and_remembered(self) -> None:
+        coordinate = Coordinate(51.462, -0.010)
+
+        self.window._finish_reverse_location(coordinate, "SE13 5AF", None, False)
+
+        self.assertEqual("SE13 5AF", self.window.postcode_entry.get_text())
+        self.assertEqual(coordinate, self.window._picked_start)
+        self.assertEqual("SE13 5AF", self.window.settings.get_string("last-start-postcode"))
+
+    def test_successful_manual_start_postcode_is_remembered(self) -> None:
+        plan = mock.Mock()
+
+        with (
+            mock.patch.object(self.window, "_render_plan"),
+            mock.patch.object(self.window, "_show_results_section"),
+        ):
+            self.window._finish_generate_walk(self.window._generation_id, plan, None, "SE8 4AG")
+
+        self.assertEqual("SE8 4AG", self.window.settings.get_string("last-start-postcode"))
+
+    def test_map_point_does_not_replace_remembered_postcode(self) -> None:
+        self.window.settings.set_string("last-start-postcode", "SE13 5AF")
+        self.window._pending_map_pick = "start"
+
+        self.window._on_map_location_selected(Coordinate(51.48, -0.03))
+
+        self.assertEqual("SE13 5AF", self.window.settings.get_string("last-start-postcode"))
+
+    def test_remembered_postcode_is_restored_without_requesting_location(self) -> None:
+        self.window.settings.set_string("last-start-postcode", "se8 4ag")
+        restored = MainWindow(None)
+        self.addCleanup(restored.destroy)
+
+        with mock.patch.object(restored.location_provider, "request_location") as request_location:
+            restored.request_initial_start_location()
+            restored.request_initial_start_location()
+
+        self.assertEqual("SE8 4AG", restored.postcode_entry.get_text())
+        request_location.assert_not_called()
+
+    def test_automatic_location_does_not_replace_an_edited_start(self) -> None:
+        self.window.postcode_entry.set_text("SE8 4AG")
+
+        self.window._finish_reverse_location(Coordinate(51.462, -0.010), "SE13 5AF", None, True)
+
+        self.assertEqual("SE8 4AG", self.window.postcode_entry.get_text())
+        self.assertIsNone(self.window._picked_start)
+
+    def test_first_run_requests_location_once_and_keeps_default_on_failure(self) -> None:
+        with mock.patch.object(self.window.location_provider, "request_location") as request_location:
+            self.window.request_initial_start_location()
+            self.window.request_initial_start_location()
+
+        request_location.assert_called_once_with("", self.window._finish_current_location_request)
+        self.window._finish_current_location_request_on_main(None, "Location unavailable")
+        self.assertEqual(self.window.DEFAULT_START_POSTCODE, self.window.postcode_entry.get_text())
 
     def test_native_breakpoint_enters_compact_mode_on_initial_narrow_allocation(self) -> None:
         self.window.set_default_size(390, 780)
@@ -453,12 +511,14 @@ class ApplicationWindowTests(unittest.TestCase):
         with (
             mock.patch.object(app, "_load_styles"),
             mock.patch("lewisham_walks.main.MainWindow") as window_type,
+            mock.patch("lewisham_walks.main.GLib.idle_add") as idle_add,
         ):
             app.do_activate()
             app.do_activate()
 
         window_type.assert_called_once_with(app)
         self.assertEqual(2, window_type.return_value.present.call_count)
+        idle_add.assert_called_once_with(window_type.return_value.request_initial_start_location)
         self.assertFalse(app.get_flags() & Gio.ApplicationFlags.NON_UNIQUE)
 
 

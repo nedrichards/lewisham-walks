@@ -23,6 +23,6 @@ Lewisham Walks remains a small, GNOME-first app for discovering Lewisham and its
 
 ## Later
 
-- [ ] Remember useful non-sensitive preferences without retaining postcode or location history by default.
+- [x] Remember the last successfully used start postcode without retaining map-picked coordinates or a location history.
 - [ ] Consider carefully licensed public art, notable tree, nature or heritage sources.
 - [ ] Add translation infrastructure if there is genuine demand.

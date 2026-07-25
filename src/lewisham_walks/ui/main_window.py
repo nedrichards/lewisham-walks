@@ -35,7 +35,7 @@ from ..models import (
 )
 from ..planner import MAX_BLOSSOM_ROUTE_POINTS, RoutePlanner, StraightLineRoutingProvider
 from ..providers.amenities import OverpassAmenityProvider
-from ..providers.geocoding import GeocodingError, PostcodesIoGeocoder
+from ..providers.geocoding import GeocodingError, PostcodesIoGeocoder, normalise_postcode
 from ..providers.location import LocationPortalProvider
 from ..providers.routing import OpenStreetMapRoutingProvider, RoutingError
 from ..store import load_seed_blossom_discoveries, load_seed_discoveries
@@ -57,6 +57,7 @@ from .preferences_window import PreferencesWindow
 
 
 class MainWindow(Adw.ApplicationWindow):
+    DEFAULT_START_POSTCODE = "SE13 5AF"
     COMPACT_BREAKPOINT = COMPACT_BREAKPOINT
     MAP_WIDE_MIN_WIDTH = MAP_WIDE_MIN_WIDTH
     MAP_WIDE_MIN_HEIGHT = MAP_WIDE_MIN_HEIGHT
@@ -88,6 +89,8 @@ class MainWindow(Adw.ApplicationWindow):
         self._updating_location_entry = False
         self._generating = False
         self._locating_start = False
+        self._location_request_is_automatic = False
+        self._initial_location_requested = False
         self._sidebar_requested_open = True
         self._syncing_sidebar_button = False
         self._preferences_window: PreferencesWindow | None = None
@@ -216,7 +219,9 @@ class MainWindow(Adw.ApplicationWindow):
 
         self.postcode_entry = Adw.EntryRow.new()
         self.postcode_entry.set_title("Postcode or map point")
-        self.postcode_entry.set_text("SE13 5AF")
+        saved_postcode = self._saved_start_postcode()
+        self._has_saved_start_postcode = saved_postcode is not None
+        self.postcode_entry.set_text(saved_postcode or self.DEFAULT_START_POSTCODE)
         self.postcode_entry.connect("notify::text", self._on_start_location_text_changed)
 
         self.current_location_button = Gtk.Button.new_from_icon_name(icons.CURRENT_LOCATION)
@@ -652,8 +657,11 @@ class MainWindow(Adw.ApplicationWindow):
                 StopPreference.CAFE_ALONG,
                 StopPreference.PUB_ALONG,
             ][self.stop_row.get_selected()]
+            start_postcode = None
+            if self._picked_start is None:
+                start_postcode = normalise_postcode(self.postcode_entry.get_text())
             inputs = {
-                "postcode": self.postcode_entry.get_text(),
+                "postcode": start_postcode,
                 "end_postcode": self.end_postcode_entry.get_text(),
                 "start_coordinate": self._picked_start,
                 "end_coordinate": self._picked_end,
@@ -715,19 +723,39 @@ class MainWindow(Adw.ApplicationWindow):
                     plan,
                     warnings=[*plan.warnings, "Live walking directions were unavailable, so this route is an approximate guide."],
                 )
-            GLib.idle_add(self._finish_generate_walk, generation_id, plan, None)
+            GLib.idle_add(
+                self._finish_generate_walk,
+                generation_id,
+                plan,
+                None,
+                inputs["postcode"],
+            )
         except (GeocodingError, RoutingError, ValueError) as error:
-            GLib.idle_add(self._finish_generate_walk, generation_id, None, str(error))
+            GLib.idle_add(self._finish_generate_walk, generation_id, None, str(error), None)
         except Exception as error:
-            GLib.idle_add(self._finish_generate_walk, generation_id, None, f"Could not generate route: {error}")
+            GLib.idle_add(
+                self._finish_generate_walk,
+                generation_id,
+                None,
+                f"Could not generate route: {error}",
+                None,
+            )
 
-    def _finish_generate_walk(self, generation_id: int, plan: RoutePlan | None, error_message: str | None) -> bool:
+    def _finish_generate_walk(
+        self,
+        generation_id: int,
+        plan: RoutePlan | None,
+        error_message: str | None,
+        start_postcode: str | None = None,
+    ) -> bool:
         if generation_id != self._generation_id:
             return False
         self._set_generating(False)
         if error_message:
             self._show_error(error_message)
         elif plan is not None:
+            if start_postcode is not None:
+                self._remember_start_postcode(start_postcode)
             self.current_plan = plan
             self._render_plan(plan)
             self._show_results_section()
@@ -812,8 +840,23 @@ class MainWindow(Adw.ApplicationWindow):
         self.toast_overlay.add_toast(Adw.Toast.new("Click the map to set the end."))
 
     def _use_current_location_for_start(self, _button) -> None:
+        self._request_location_for_start(automatic=False)
+
+    def request_initial_start_location(self) -> bool:
+        """Derive a postcode on first use, without replacing a remembered start."""
+        if not self._initial_location_requested:
+            self._initial_location_requested = True
+            if not self._has_saved_start_postcode:
+                self._request_location_for_start(automatic=True)
+        return False
+
+    def _request_location_for_start(self, *, automatic: bool) -> None:
         self._pending_map_pick = None
-        self._set_locating_start(True)
+        self._location_request_is_automatic = automatic
+        if automatic:
+            self.current_location_button.set_sensitive(False)
+        else:
+            self._set_locating_start(True)
         self.location_provider.request_location("", self._finish_current_location_request)
 
     def _finish_current_location_request(self, coordinate: Coordinate | None, error_message: str | None) -> None:
@@ -824,25 +867,103 @@ class MainWindow(Adw.ApplicationWindow):
         coordinate: Coordinate | None,
         error_message: str | None,
     ) -> bool:
-        self._set_locating_start(False)
+        automatic = self._location_request_is_automatic
+        self._location_request_is_automatic = False
         if error_message is not None:
-            self._show_error(error_message)
+            if automatic:
+                self.current_location_button.set_sensitive(not self._generating)
+            else:
+                self._set_locating_start(False)
+                self._show_error(error_message)
             return False
         if coordinate is None:
-            self._show_error("The location portal did not return coordinates.")
+            if automatic:
+                self.current_location_button.set_sensitive(not self._generating)
+            else:
+                self._set_locating_start(False)
+                self._show_error("The location portal did not return coordinates.")
+            return False
+        if automatic and (
+            self._generating
+            or self._picked_start is not None
+            or self.postcode_entry.get_text() != self.DEFAULT_START_POSTCODE
+        ):
+            self.current_location_button.set_sensitive(not self._generating)
+            return False
+        if not automatic:
+            self.progress_label.set_text("Finding nearby postcode...")
+        thread = threading.Thread(
+            target=self._reverse_location_worker,
+            args=(coordinate, automatic),
+            daemon=True,
+            name="postcode-reverse-geocoder",
+        )
+        thread.start()
+        return False
+
+    def _reverse_location_worker(self, coordinate: Coordinate, automatic: bool) -> None:
+        try:
+            postcode = PostcodesIoGeocoder().reverse_lookup_postcode(coordinate)
+            GLib.idle_add(self._finish_reverse_location, coordinate, postcode, None, automatic)
+        except (GeocodingError, ValueError) as error:
+            GLib.idle_add(self._finish_reverse_location, coordinate, None, str(error), automatic)
+        except Exception as error:
+            GLib.idle_add(
+                self._finish_reverse_location,
+                coordinate,
+                None,
+                f"Could not look up a postcode: {error}",
+                automatic,
+            )
+
+    def _finish_reverse_location(
+        self,
+        coordinate: Coordinate,
+        postcode: str | None,
+        error_message: str | None,
+        automatic: bool,
+    ) -> bool:
+        if automatic:
+            self.current_location_button.set_sensitive(not self._generating)
+        else:
+            self._set_locating_start(False)
+        if error_message is not None or postcode is None:
+            if not automatic:
+                self._show_error(f"{error_message or 'No nearby UK postcode was found.'} Kept the existing start.")
+            return False
+        if automatic and (
+            self._generating
+            or self._picked_start is not None
+            or self.postcode_entry.get_text() != self.DEFAULT_START_POSTCODE
+        ):
             return False
 
         self._updating_location_entry = True
         try:
             self._picked_start = coordinate
-            self.postcode_entry.set_text(f"Current location {coordinate.lat:.5f}, {coordinate.lon:.5f}")
+            self.postcode_entry.set_text(postcode)
         finally:
             self._updating_location_entry = False
+        self._remember_start_postcode(postcode)
         self._sync_picked_locations_to_map()
-        if self.split_view.get_collapsed():
+        if self.split_view.get_collapsed() and not automatic:
             self._show_planner_section()
-        self.toast_overlay.add_toast(Adw.Toast.new("Start set from current location."))
+        self.toast_overlay.add_toast(
+            Adw.Toast.new(f"Start set to {postcode} from current location.")
+        )
         return False
+
+    def _saved_start_postcode(self) -> str | None:
+        try:
+            saved = self.settings.get_string("last-start-postcode")
+            return normalise_postcode(saved) if saved else None
+        except (ValueError, GLib.Error):
+            return None
+
+    def _remember_start_postcode(self, postcode: str) -> None:
+        normalised = normalise_postcode(postcode)
+        self.settings.set_string("last-start-postcode", normalised)
+        self._has_saved_start_postcode = True
 
     def _set_locating_start(self, locating: bool) -> None:
         self._locating_start = locating

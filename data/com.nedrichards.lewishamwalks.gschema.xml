@@ -6,6 +6,11 @@
       <summary>Walking speed</summary>
       <description>Estimated walking speed in kilometres per hour.</description>
     </key>
+    <key name="last-start-postcode" type="s">
+      <default>''</default>
+      <summary>Last start postcode</summary>
+      <description>The last successfully used UK postcode, restored as the next walk's start.</description>
+    </key>
     <key name="seen-story-ids" type="as">
       <default>[]</default>
       <summary>Stories marked as discovered</summary>
