@@ -1,6 +1,10 @@
 # Contributing
 
-Issues and small, focused pull requests are welcome. Lewisham Walks is deliberately GNOME-centric, Lewisham-first, adaptive from desktop to narrow screens, and usable without a paid API key.
+Lewisham Walks is a small app for a deliberately limited audience. It exists to help people explore Lewisham and its immediate borders; it is not trying to become a general-purpose walking platform.
+
+The best way to take it in a different direction is to fork it. This is GPL-3.0-or-later software: use those rights, change it, rename it and make something for your own place or community. I will do my best to answer questions or help where I can, but I cannot promise ongoing support, accept every change upstream or broaden the app beyond its Lewisham focus.
+
+Issues and small, focused pull requests that strengthen Lewisham Walks are still welcome. The rest of this file records how the project is built and checked, both for upstream contributions and for people making their own version. The app remains deliberately GNOME-centric, Lewisham-first, adaptive from desktop to narrow screens, and usable without a paid API key.
 
 ## Development
 
