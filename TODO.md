@@ -14,7 +14,7 @@ Lewisham Walks remains a small, GNOME-first app for discovering Lewisham and its
 
 ## Before the first release
 
-- [ ] Resolve redistribution permission for Freddy's Blossom Walk and the Lewisham FOI plaque data, or choose a release-safe fallback.
+- [ ] Resolve redistribution permission for Freddy's Blossom Walk or choose a release-safe fallback. The Lewisham maroon plaques source document is preserved as the public artefact disclosed through the linked FOI request.
 - [ ] Curate weak imported records: approximate coordinates, duplicate locations, unwieldy titles and excessively long descriptions.
 - [ ] Run a small real-world beta and fix anything that prevents completing a walk.
 - [ ] Review privacy, network-service attribution and failure messages from the packaged Flatpak.

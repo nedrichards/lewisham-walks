@@ -25,6 +25,6 @@ appstreamcli validate --pedantic --no-net data/com.nedrichards.lewishamwalks.met
 
 For packaging changes, also build `com.nedrichards.lewishamwalks.Devel.json`. The development manifest always uses the local checkout and runs tests. The production manifest is pinned to an exact public Git commit and is updated only for a reviewed checkpoint or release.
 
-Do not commit raw source documents, generated build output, credentials, UI review captures, or agent state. If adding a discovery source, document its provenance, licence, regeneration command, and accuracy limitations in `DATA_SOURCES.md`.
+Do not commit raw source documents unless the project deliberately preserves a publicly disclosed source artefact, as it does for the Lewisham maroon plaques DOCX. Do not commit generated build output, credentials, UI review captures, or agent state. If adding a discovery source, document its provenance, licence, regeneration command, and accuracy limitations in `DATA_SOURCES.md`.
 
 Commit messages should be short and semantic, describing one coherent behaviour or repository change.

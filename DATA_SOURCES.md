@@ -17,7 +17,7 @@ Titles, inscriptions and addresses originate in a Lewisham Council document rele
 
 - https://www.whatdotheyknow.com/request/maroon_plaque_locations
 
-Coordinates are matched to Open Plaques where possible; two remaining points are explicitly marked approximate. The raw DOCX is not committed. The FOI response does not state an explicit open-data licence, so this project records its provenance without asserting that the raw document is covered by the application licence.
+The DOCX is committed in the repository as the public source artefact disclosed by Lewisham Council through that request. Coordinates are matched to Open Plaques where possible; two remaining points are explicitly marked approximate. The FOI response does not state an explicit open-data licence, so its inclusion records the document's provenance without asserting that it is covered by the application's GPL licence.
 
 ## Freddy's Blossom Walk
 
