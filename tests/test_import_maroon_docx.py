@@ -6,7 +6,8 @@ SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "import_maroon_d
 DOCX_PATH = Path(__file__).resolve().parents[1] / "Maroon Plaque Location and Text List 2025.docx"
 SPEC = importlib.util.spec_from_file_location("import_maroon_docx", SCRIPT_PATH)
 import_maroon_docx = importlib.util.module_from_spec(SPEC)
-assert SPEC.loader is not None
+if SPEC.loader is None:
+    raise RuntimeError("Could not load the maroon plaque importer")
 SPEC.loader.exec_module(import_maroon_docx)
 
 

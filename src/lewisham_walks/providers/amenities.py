@@ -109,7 +109,7 @@ class OverpassAmenityProvider:
             return None
         category = str(item.get("category", ""))
         item_type = str(item.get("type", ""))
-        if kind == "cafe" and item_type not in {"cafe"}:
+        if kind == "cafe" and item_type != "cafe":
             return None
         if kind in {"pub", "bar"} and item_type not in {"pub", "bar", "biergarten"}:
             return None

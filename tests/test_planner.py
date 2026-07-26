@@ -14,12 +14,12 @@ from lewisham_walks.planner import MAX_BLOSSOM_ROUTE_POINTS, RoutePlanner
 
 
 class FakeAmenityProvider:
-    def search(self, centre, kind, radius_m=900):
+    def search(self, centre, kind, _radius_m=900):
         return [AmenityStop("osm/1", f"Test {kind.title()}", kind, Coordinate(centre.lat + 0.001, centre.lon))]
 
 
 class BrokenAmenityProvider:
-    def search(self, centre, kind, radius_m=900):
+    def search(self, _centre, _kind, _radius_m=900):
         raise RuntimeError("Overpass returned 504")
 
 
@@ -27,7 +27,7 @@ class RecordingRoutingProvider:
     def __init__(self):
         self.last_waypoints = None
 
-    def route(self, waypoints, request):
+    def route(self, waypoints, _request):
         self.last_waypoints = list(waypoints)
         return waypoints, [], 0.0, 0.0
 

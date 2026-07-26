@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import threading
 import time
+from typing import ClassVar
 
 import requests
 
@@ -12,28 +13,26 @@ class RoutingError(RuntimeError):
     pass
 
 
-_request_lock = threading.Lock()
-_last_request_started = 0.0
-
-
 class OpenStreetMapRoutingProvider:
     """Keyless pedestrian routing from the FOSSGIS OpenStreetMap service."""
 
     ENDPOINT = "https://routing.openstreetmap.de/routed-foot/route/v1/driving"
+    _request_lock: ClassVar[threading.Lock] = threading.Lock()
+    _last_request_started: ClassVar[float] = 0.0
 
     def __init__(self, session: requests.Session | None = None) -> None:
         self._session = session or requests.Session()
 
-    def route(self, waypoints: list[Coordinate], request: RouteRequest) -> tuple[list[Coordinate], list[RouteStep], float, float]:
-        global _last_request_started
+    def route(self, waypoints: list[Coordinate], _request: RouteRequest) -> tuple[list[Coordinate], list[RouteStep], float, float]:
         if len(waypoints) < 2:
             return list(waypoints), [], 0.0, 0.0
         coordinates = ";".join(f"{point.lon:.6f},{point.lat:.6f}" for point in waypoints)
-        with _request_lock:
-            delay = 1.0 - (time.monotonic() - _last_request_started)
+        provider_type = type(self)
+        with provider_type._request_lock:
+            delay = 1.0 - (time.monotonic() - provider_type._last_request_started)
             if delay > 0:
                 time.sleep(delay)
-            _last_request_started = time.monotonic()
+            provider_type._last_request_started = time.monotonic()
         response = self._session.get(
             f"{self.ENDPOINT}/{coordinates}",
             params={"overview": "full", "geometries": "geojson", "steps": "true"},

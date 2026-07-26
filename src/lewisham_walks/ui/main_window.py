@@ -4,6 +4,7 @@ import tempfile
 import threading
 from dataclasses import replace
 from pathlib import Path
+from typing import ClassVar
 
 import gi
 
@@ -64,7 +65,7 @@ class MainWindow(Adw.ApplicationWindow):
     MAP_COMPACT_MIN_WIDTH = MAP_COMPACT_MIN_WIDTH
     MAP_COMPACT_MIN_HEIGHT = MAP_COMPACT_MIN_HEIGHT
     MAP_PICK_ICON = icons.MAP_LOCATION
-    ROUTE_SOURCE_OPTIONS = [
+    ROUTE_SOURCE_OPTIONS: ClassVar[list[str]] = [
         "A bit of everything",
         "People & creativity",
         "Places & change",
@@ -732,7 +733,8 @@ class MainWindow(Adw.ApplicationWindow):
             )
         except (GeocodingError, RoutingError, ValueError) as error:
             GLib.idle_add(self._finish_generate_walk, generation_id, None, str(error), None)
-        except Exception as error:
+        # Keep unexpected worker failures visible and non-fatal to the GTK loop.
+        except Exception as error:  # noqa: BLE001
             GLib.idle_add(
                 self._finish_generate_walk,
                 generation_id,
@@ -907,7 +909,8 @@ class MainWindow(Adw.ApplicationWindow):
             GLib.idle_add(self._finish_reverse_location, coordinate, postcode, None, automatic)
         except (GeocodingError, ValueError) as error:
             GLib.idle_add(self._finish_reverse_location, coordinate, None, str(error), automatic)
-        except Exception as error:
+        # Keep unexpected worker failures visible and non-fatal to the GTK loop.
+        except Exception as error:  # noqa: BLE001
             GLib.idle_add(
                 self._finish_reverse_location,
                 coordinate,
@@ -1370,7 +1373,8 @@ class MainWindow(Adw.ApplicationWindow):
             self.toast_overlay.add_toast(Adw.Toast.new("GPX exported"))
         except GLib.Error:
             return
-        except Exception as error:
+        # File-dialog callbacks must report unexpected serialization and I/O failures.
+        except Exception as error:  # noqa: BLE001
             self._show_error(f"Could not export GPX: {error}")
 
     def _show_error(self, message: str) -> None:

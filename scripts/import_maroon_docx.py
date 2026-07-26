@@ -60,7 +60,8 @@ def slugify(value: str) -> str:
 
 def extract_docx_chunks(path: Path) -> list[str]:
     with ZipFile(path) as archive:
-        root = ElementTree.fromstring(archive.read("word/document.xml"))
+        # This importer only parses the explicitly selected local source archive.
+        root = ElementTree.fromstring(archive.read("word/document.xml"))  # noqa: S314
 
     chunks: list[str] = []
     for paragraph in root.findall(".//w:p", WORD_NS):

@@ -21,7 +21,8 @@ def _load_gtk():
             raise RuntimeError("No display is available; run these tests inside the GNOME SDK with a display socket.")
 
         return Adw, Gio, GLib, Gtk, None
-    except Exception as error:
+    # Treat any optional GTK/display failure as a reason to skip this suite.
+    except Exception as error:  # noqa: BLE001
         return None, None, None, None, error
 
 

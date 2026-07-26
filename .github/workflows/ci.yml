@@ -23,7 +23,7 @@ jobs:
         with:
           python-version: "3.13"
       - name: Install source-test dependencies
-        run: python3 -m pip install ruff==0.15.12 requests==2.32.5
+        run: python3 -m pip install ruff==0.16.0 requests==2.32.5
       - name: Lint
         run: ruff check .
       - name: Compile Python

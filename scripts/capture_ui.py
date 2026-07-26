@@ -122,7 +122,8 @@ def main() -> int:
             if not isinstance(texture, Gdk.Texture) or not texture.save_to_png(str(output)):
                 raise RuntimeError("Could not save the rendered window")
             renderer.unrealize()
-        except Exception as error:
+        # This idle callback must report renderer failures to the calling thread.
+        except Exception as error:  # noqa: BLE001
             capture_errors.append(error)
         GLib.idle_add(shutdown)
         return GLib.SOURCE_REMOVE

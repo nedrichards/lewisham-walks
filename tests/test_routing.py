@@ -1,4 +1,5 @@
 import unittest
+from unittest import mock
 
 from lewisham_walks.models import Coordinate, RouteRequest
 from lewisham_walks.providers.routing import OpenStreetMapRoutingProvider
@@ -58,6 +59,26 @@ class OpenStreetMapRoutingTests(unittest.TestCase):
         self.assertEqual(610.0, duration)
         self.assertIn("routed-foot", session.request[0])
         self.assertIn("User-Agent", session.request[2])
+
+    def test_rate_limit_is_shared_between_provider_instances(self):
+        start = Coordinate(51.46, -0.01)
+        end = Coordinate(51.47, -0.02)
+        request = RouteRequest(start, 60)
+        previous_request_started = OpenStreetMapRoutingProvider._last_request_started
+        OpenStreetMapRoutingProvider._last_request_started = 0.0
+        self.addCleanup(setattr, OpenStreetMapRoutingProvider, "_last_request_started", previous_request_started)
+
+        with (
+            mock.patch(
+                "lewisham_walks.providers.routing.time.monotonic",
+                side_effect=[100.0, 100.0, 100.25, 101.0],
+            ),
+            mock.patch("lewisham_walks.providers.routing.time.sleep") as sleep,
+        ):
+            OpenStreetMapRoutingProvider(FakeSession()).route([start, end], request)
+            OpenStreetMapRoutingProvider(FakeSession()).route([start, end], request)
+
+        sleep.assert_called_once_with(0.75)
 
 
 if __name__ == "__main__":

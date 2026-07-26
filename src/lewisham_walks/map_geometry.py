@@ -58,13 +58,13 @@ def unproject_coordinate(x: float, y: float, bounds: MapBounds, width: int, heig
 
 
 def discoveries_for_viewport(
-    discoveries: list["Discovery"],
+    discoveries: list[Discovery],
     bounds: MapBounds,
     centre: Coordinate,
     limit: int = 48,
     columns: int = 8,
     rows: int = 6,
-) -> list["Discovery"]:
+) -> list[Discovery]:
     """Choose a useful, spatially distributed set for the visible map.
 
     One pass through each grid cell prevents a dense cluster from consuming the
@@ -83,13 +83,13 @@ def discoveries_for_viewport(
 
     lat_span = max(bounds.max_lat - bounds.min_lat, 0.000001)
     lon_span = max(bounds.max_lon - bounds.min_lon, 0.000001)
-    buckets: dict[tuple[int, int], list["Discovery"]] = {}
+    buckets: dict[tuple[int, int], list[Discovery]] = {}
     for discovery in visible:
         column = min(columns - 1, max(0, int((discovery.coordinate.lon - bounds.min_lon) / lon_span * columns)))
         row = min(rows - 1, max(0, int((discovery.coordinate.lat - bounds.min_lat) / lat_span * rows)))
         buckets.setdefault((column, row), []).append(discovery)
 
-    def rank(discovery: "Discovery") -> tuple[int, int, int, float, str]:
+    def rank(discovery: Discovery) -> tuple[int, int, int, float, str]:
         return (
             0 if discovery.curation_status == "in_scope" else 1,
             0 if discovery.is_accurate else 1,
@@ -105,7 +105,7 @@ def discoveries_for_viewport(
         key=lambda cell: min(_coordinate_distance_m(centre, item.coordinate) for item in buckets[cell]),
     )
 
-    selected: list["Discovery"] = []
+    selected: list[Discovery] = []
     while ordered_cells and len(selected) < limit:
         next_cells: list[tuple[int, int]] = []
         for cell in ordered_cells:
@@ -136,9 +136,9 @@ def find_discovery_at_position(
     bounds: MapBounds,
     width: int,
     height: int,
-    discoveries: list["Discovery"],
+    discoveries: list[Discovery],
     threshold_px: float = 14.0,
-) -> "Discovery | None":
+) -> Discovery | None:
     closest = None
     closest_distance = threshold_px
     for discovery in discoveries:

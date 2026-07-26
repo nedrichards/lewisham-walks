@@ -192,7 +192,8 @@ class ShumateDiscoveryMapWidget(Gtk.Box):
             source.set_property("license", "OpenMapTiles and OpenStreetMap contributors")
             source.set_property("license-uri", "https://www.openstreetmap.org/copyright")
             return source
-        except Exception:
+        # Libshumate renderer availability varies by graphics stack.
+        except Exception:  # noqa: BLE001
             return None
 
     def _on_dark_changed(self, style_manager, _property) -> None:
@@ -249,7 +250,8 @@ class ShumateDiscoveryMapWidget(Gtk.Box):
                 self._viewport.widget_coords_to_location(self._map_view, x, y)
                 for x, y in ((0, 0), (width, 0), (0, height), (width, height))
             ]
-        except Exception:
+        # A transient viewport conversion failure should only defer this refresh.
+        except Exception:  # noqa: BLE001
             return GLib.SOURCE_REMOVE
         latitudes = [latitude for latitude, _longitude in corners]
         longitudes = [longitude for _latitude, longitude in corners]
@@ -482,7 +484,7 @@ class DiscoveryMapWidget(Gtk.DrawingArea):
         if self._plan is not None:
             self._draw_plan(context, self._plan, bounds, width, height)
         self._draw_picked_locations(context, bounds, width, height)
-        self._draw_caption(context, width, height)
+        self._draw_caption(context, height)
 
     def _current_bounds(self) -> MapBounds:
         if self._focused_discovery is not None:
@@ -612,7 +614,7 @@ class DiscoveryMapWidget(Gtk.DrawingArea):
         context.move_to(x - extents.width / 2 - extents.x_bearing, y - extents.height / 2 - extents.y_bearing)
         context.show_text(text)
 
-    def _draw_caption(self, context, width: int, height: int) -> None:
+    def _draw_caption(self, context, height: int) -> None:
         if self._dark:
             context.set_source_rgba(0.86, 0.89, 0.92, 0.82)
         else:

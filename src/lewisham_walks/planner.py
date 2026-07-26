@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import replace
+from itertools import pairwise
 from typing import Protocol
 
 from .models import (
@@ -41,7 +42,7 @@ def haversine_m(a: Coordinate, b: Coordinate) -> float:
 
 
 def straight_line_route(waypoints: list[Coordinate], request: RouteRequest) -> tuple[list[Coordinate], list[RouteStep], float, float]:
-    distance = sum(haversine_m(a, b) for a, b in zip(waypoints, waypoints[1:]))
+    distance = sum(haversine_m(a, b) for a, b in pairwise(waypoints))
     walking_seconds = distance / (request.walking_speed_kmh * 1000 / 3600)
     steps = [
         RouteStep(
@@ -50,7 +51,7 @@ def straight_line_route(waypoints: list[Coordinate], request: RouteRequest) -> t
             duration_s=haversine_m(a, b) / (request.walking_speed_kmh * 1000 / 3600),
             leg_index=index,
         )
-        for index, (a, b) in enumerate(zip(waypoints, waypoints[1:]))
+        for index, (a, b) in enumerate(pairwise(waypoints))
     ]
     return waypoints, steps, distance, walking_seconds
 
@@ -121,9 +122,9 @@ class RoutePlanner:
 
         while candidates and len(selected) < request.max_discoveries:
             best = min(candidates, key=lambda discovery: self._candidate_score(discovery, current, seen_topics, request.variation_seed))
-            candidate_selection = selected + [best]
+            candidate_selection = [*selected, best]
             trial_points = [request.start, *[discovery.coordinate for discovery in candidate_selection], request.end or request.start]
-            distance = sum(haversine_m(a, b) for a, b in zip(trial_points, trial_points[1:]))
+            distance = sum(haversine_m(a, b) for a, b in pairwise(trial_points))
             walking_seconds = distance / (request.walking_speed_kmh * 1000 / 3600)
             dwell_seconds = self._dwell_seconds(candidate_selection, request)
             if walking_seconds + dwell_seconds > budget_seconds and selected:
@@ -188,10 +189,10 @@ class RoutePlanner:
         ordered = candidates[start_index:] + candidates[:start_index]
 
         for point in ordered[: request.max_discoveries]:
-            candidate_selection = selected + [point]
+            candidate_selection = [*selected, point]
             endpoint = request.end if request.end is not None else candidate_selection[-1].coordinate
             trial_points = [request.start, *[item.coordinate for item in candidate_selection], endpoint]
-            distance = sum(haversine_m(a, b) for a, b in zip(trial_points, trial_points[1:]))
+            distance = sum(haversine_m(a, b) for a, b in pairwise(trial_points))
             walking_seconds = distance / (request.walking_speed_kmh * 1000 / 3600)
             dwell_seconds = self._dwell_seconds(candidate_selection, request)
             if walking_seconds + dwell_seconds > budget_seconds and selected:
@@ -217,7 +218,8 @@ class RoutePlanner:
             centre = discoveries[len(discoveries) // 2].coordinate
         try:
             candidates = self._amenity_provider.search(centre, kind)
-        except Exception as error:
+        # Amenity discovery is optional; provider failure must remain non-fatal.
+        except Exception as error:  # noqa: BLE001
             warnings.append(f"Could not find a nearby {kind}: {error}")
             return []
         if not candidates:

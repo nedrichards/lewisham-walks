@@ -48,7 +48,7 @@ def title_from_inscription(inscription: str) -> str:
     words = first_sentence.split()
     title_words: list[str] = []
     for word in words:
-        if sum(len(part) + 1 for part in title_words + [word]) > 72:
+        if sum(len(part) + 1 for part in [*title_words, word]) > 72:
             break
         title_words.append(word)
     return " ".join(title_words).rstrip(",;:") or cleaned[:72].rstrip()
@@ -109,7 +109,7 @@ def boundary_to_multipolygon(boundary: dict[str, Any]) -> list[list[list[list[fl
     geometry = boundary["geometry"]
     if geometry["type"] == "Polygon":
         return [geometry["coordinates"]]
-    elif geometry["type"] == "MultiPolygon":
+    if geometry["type"] == "MultiPolygon":
         return geometry["coordinates"]
     raise ValueError("Boundary must be Polygon or MultiPolygon GeoJSON.")
 

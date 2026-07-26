@@ -5,7 +5,8 @@ from pathlib import Path
 SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "import_openplaques.py"
 SPEC = importlib.util.spec_from_file_location("import_openplaques", SCRIPT_PATH)
 import_openplaques = importlib.util.module_from_spec(SPEC)
-assert SPEC.loader is not None
+if SPEC.loader is None:
+    raise RuntimeError("Could not load the OpenPlaques importer")
 SPEC.loader.exec_module(import_openplaques)
 
 

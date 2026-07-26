@@ -69,7 +69,8 @@ class LocationPortalProvider:
                 self._on_create_session_finished,
                 parent_window,
             )
-        except Exception as error:
+        # Portal and D-Bus bindings can surface several runtime exception types.
+        except Exception as error:  # noqa: BLE001
             self._finish(None, f"Could not request current location: {error}")
 
     def cancel(self) -> None:
@@ -127,7 +128,7 @@ class LocationPortalProvider:
                 self._on_start_finished,
                 request_path,
             )
-        except Exception as error:
+        except Exception as error:  # noqa: BLE001
             self._finish(None, f"Could not start location sharing: {error}")
 
     def _on_start_finished(self, proxy, result, expected_request_path: str) -> None:
@@ -148,7 +149,7 @@ class LocationPortalProvider:
                     Gio.DBusSignalFlags.NONE,
                     self._on_start_response,
                 )
-        except Exception as error:
+        except Exception as error:  # noqa: BLE001
             self._finish(None, f"Could not start location sharing: {error}")
 
     def _on_start_response(self, _connection, sender, path, _interface, _signal, parameters) -> None:
@@ -203,8 +204,8 @@ class LocationPortalProvider:
 
             if self._timeout_id is not None:
                 GLib.source_remove(self._timeout_id)
-        except Exception:
-            pass
+        except Exception as error:  # noqa: BLE001
+            self._debug(f"could not remove location timeout: {error}")
         self._timeout_id = None
 
         if self._connection is not None:
@@ -227,8 +228,8 @@ class LocationPortalProvider:
                         None,
                         None,
                     )
-                except Exception:
-                    pass
+                except Exception as error:  # noqa: BLE001
+                    self._debug(f"could not close location session: {error}")
 
         self._active = False
         self._callback = None

@@ -5,9 +5,34 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]
+extend-select = [
+    "A",
+    "ARG",
+    "B",
+    "BLE",
+    "C4",
+    "DTZ",
+    "EXE",
+    "FURB",
+    "G",
+    "LOG",
+    "PERF",
+    "PIE",
+    "PLC",
+    "PLE",
+    "PLW",
+    "PTH",
+    "RET",
+    "RUF",
+    "S",
+    "SIM",
+    "UP",
+]
 ignore = ["E501"]
 
 [tool.ruff.lint.per-file-ignores]
 "scripts/capture_ui.py" = ["E402"]
 "src/lewisham_walks/main.py" = ["E402"]
+"src/lewisham_walks/providers/location.py" = ["PLC0415"]
 "src/lewisham_walks/ui/*.py" = ["E402"]
+"tests/test_ui_responsive.py" = ["PLC0415"]

@@ -19,7 +19,8 @@ STYLE_META = {
 
 def import_blossom_kmz(path: Path) -> list[dict]:
     with ZipFile(path) as archive:
-        root = ElementTree.fromstring(archive.read("doc.kml"))
+        # This importer only parses the explicitly selected local source archive.
+        root = ElementTree.fromstring(archive.read("doc.kml"))  # noqa: S314
 
     records: list[dict] = []
     for route_order, placemark in enumerate(root.findall(".//kml:Placemark", KML_NS), start=1):
