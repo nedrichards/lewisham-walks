@@ -189,6 +189,45 @@ class MainWindowResponsiveTests(unittest.TestCase):
         self.assertEqual(coordinate, self.window._picked_start)
         self.assertEqual("SE13 5AF", self.window.settings.get_string("last-start-postcode"))
 
+    def test_manual_location_keeps_the_planner_open_and_preserves_the_route(self) -> None:
+        existing_plan = mock.Mock()
+        self.window.current_plan = existing_plan
+        self.window.summary.set_text("Existing route summary")
+        self.window._show_results_section()
+        self.window._show_planner_section()
+
+        with mock.patch.object(self.window.location_provider, "request_location"):
+            self.window._request_location_for_start(automatic=False)
+
+        self.assertEqual("planner", self.window.controls_stack.get_visible_child_name())
+        self.assertEqual("Existing route summary", self.window.summary.get_text())
+
+        self.window._finish_reverse_location(Coordinate(51.462, -0.010), "SE13 5AF", None, False)
+
+        self.assertEqual("planner", self.window.controls_stack.get_visible_child_name())
+        self.assertEqual("Existing route summary", self.window.summary.get_text())
+        self.assertIs(existing_plan, self.window.current_plan)
+
+    def test_manual_location_failures_do_not_replace_or_reopen_results(self) -> None:
+        existing_plan = mock.Mock()
+        self.window.current_plan = existing_plan
+        self.window.summary.set_text("Existing route summary")
+        self.window._show_planner_section()
+
+        self.window._location_request_is_automatic = False
+        self.window._locating_start = True
+        self.window._finish_current_location_request_on_main(None, "Location permission denied")
+        self.window._finish_reverse_location(
+            Coordinate(51.462, -0.010),
+            None,
+            "Postcode lookup failed",
+            False,
+        )
+
+        self.assertEqual("planner", self.window.controls_stack.get_visible_child_name())
+        self.assertEqual("Existing route summary", self.window.summary.get_text())
+        self.assertIs(existing_plan, self.window.current_plan)
+
     def test_successful_manual_start_postcode_is_remembered(self) -> None:
         plan = mock.Mock()
 

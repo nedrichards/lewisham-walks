@@ -887,14 +887,16 @@ class MainWindow(Adw.ApplicationWindow):
                 self.current_location_button.set_sensitive(not self._generating)
             else:
                 self._set_locating_start(False)
-                self._show_error(error_message)
+                self.toast_overlay.add_toast(Adw.Toast.new(error_message))
             return False
         if coordinate is None:
             if automatic:
                 self.current_location_button.set_sensitive(not self._generating)
             else:
                 self._set_locating_start(False)
-                self._show_error("The location portal did not return coordinates.")
+                self.toast_overlay.add_toast(
+                    Adw.Toast.new("The location portal did not return coordinates.")
+                )
             return False
         if automatic and (
             self._generating
@@ -943,7 +945,11 @@ class MainWindow(Adw.ApplicationWindow):
             self._set_locating_start(False)
         if error_message is not None or postcode is None:
             if not automatic:
-                self._show_error(f"{error_message or 'No nearby UK postcode was found.'} Kept the existing start.")
+                self.toast_overlay.add_toast(
+                    Adw.Toast.new(
+                        f"{error_message or 'No nearby UK postcode was found.'} Kept the existing start."
+                    )
+                )
             return False
         if automatic and (
             self._generating
@@ -991,13 +997,8 @@ class MainWindow(Adw.ApplicationWindow):
         if locating:
             self.end_postcode_entry.set_sensitive(False)
             self.pick_end_button.set_sensitive(False)
-            self.progress_spinner.start()
-            self.progress_label.set_text("Waiting for current location...")
-            self.summary.set_text("Waiting for current location...")
-            self._show_results_section()
+            self.toast_overlay.add_toast(Adw.Toast.new("Waiting for current location..."))
         elif not self._generating:
-            self.progress_spinner.stop()
-            self.progress_label.set_text("")
             self._update_end_postcode_state()
 
     def _on_map_location_selected(self, coordinate: Coordinate) -> None:
