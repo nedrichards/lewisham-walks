@@ -160,7 +160,7 @@ class MainWindowResponsiveTests(unittest.TestCase):
         self.assertAlmostEqual(15.0, map_widget._viewport.get_zoom_level())
 
     def test_listed_buildings_are_a_distinct_walk_source(self) -> None:
-        self.window.route_source_row.set_selected(4)
+        self.window.route_source_row.set_selected(5)
         self._flush()
 
         selected = list(self.window._selected_discoveries())
@@ -169,6 +169,16 @@ class MainWindowResponsiveTests(unittest.TestCase):
         self.assertTrue(selected)
         self.assertTrue(all(item.kind is DiscoveryKind.LISTED_BUILDING for item in selected))
         self.assertEqual({"I", "II*"}, {item.attributes["grade"] for item in selected})
+
+    def test_cultural_venues_are_a_distinct_walk_source(self) -> None:
+        self.window.route_source_row.set_selected(4)
+        self._flush()
+
+        selected = list(self.window._selected_discoveries())
+
+        self.assertEqual(RouteTheme.CULTURE, self.window._selected_route_theme())
+        self.assertTrue(selected)
+        self.assertTrue(all(item.kind is DiscoveryKind.CULTURAL_VENUE for item in selected))
 
     def test_current_location_is_shown_as_a_postcode_and_remembered(self) -> None:
         coordinate = Coordinate(51.462, -0.010)
@@ -609,11 +619,22 @@ class PlaqueBrowserResponsiveTests(unittest.TestCase):
             kind=DiscoveryKind.LISTED_BUILDING, collection="historic-england-listed-buildings",
             source_name="Historic England", borough="Lewisham", attributes={"grade": "I"},
         )
-        browser = DiscoveryBrowserWindow(self.parent, [plaque, listed, blossom])
+        culture = Discovery(
+            "culture", "An arts centre", "A public cultural venue", Coordinate(51.463, -0.013),
+            kind=DiscoveryKind.CULTURAL_VENUE, collection="gla-cultural-infrastructure",
+            source_name="GLA Cultural Infrastructure Map", borough="Lewisham",
+            attributes={"category": "Arts centre"},
+        )
+        browser = DiscoveryBrowserWindow(self.parent, [plaque, listed, culture, blossom])
         self.addCleanup(browser.destroy)
 
         self.assertEqual(
-            {DiscoveryKind.PLAQUE, DiscoveryKind.LISTED_BUILDING, DiscoveryKind.BLOSSOM},
+            {
+                DiscoveryKind.PLAQUE,
+                DiscoveryKind.LISTED_BUILDING,
+                DiscoveryKind.CULTURAL_VENUE,
+                DiscoveryKind.BLOSSOM,
+            },
             {item.kind for item in browser._all_discoveries},
         )
         browser._show_discovery(listed)
@@ -625,6 +646,10 @@ class PlaqueBrowserResponsiveTests(unittest.TestCase):
         self.assertFalse(hasattr(browser, "details_group"))
 
         browser.filter_dropdown.set_selected(2)
+        self._flush()
+        self.assertEqual([culture], browser._visible_discoveries)
+
+        browser.filter_dropdown.set_selected(3)
         self._flush()
         self.assertEqual([blossom], browser._visible_discoveries)
 

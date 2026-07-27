@@ -18,7 +18,7 @@ class DiscoveryBrowserWindow(Adw.Window):
     COMPACT_BREAKPOINT = 700
     SIDEBAR_MIN_WIDTH = 280
     SIDEBAR_MAX_WIDTH = 380
-    FILTER_OPTIONS = ("Plaques", "Listed Buildings", "Blossom Walk", "Everything")
+    FILTER_OPTIONS = ("Plaques", "Listed Buildings", "Cultural Venues", "Blossom Walk", "Everything")
 
     def __init__(
         self,
@@ -55,7 +55,7 @@ class DiscoveryBrowserWindow(Adw.Window):
         toolbar = Adw.ToolbarView.new()
         header = Adw.HeaderBar.new()
         header.set_show_end_title_buttons(False)
-        header.set_title_widget(Adw.WindowTitle.new("Local Stories", "People, places and blossom around Lewisham"))
+        header.set_title_widget(Adw.WindowTitle.new("Local Stories", "People, places and culture around Lewisham"))
         toolbar.add_top_bar(header)
         self.set_content(toolbar)
 
@@ -262,6 +262,8 @@ class DiscoveryBrowserWindow(Adw.Window):
         if selected_filter == 1:
             return discovery.kind is DiscoveryKind.LISTED_BUILDING
         if selected_filter == 2:
+            return discovery.kind is DiscoveryKind.CULTURAL_VENUE
+        if selected_filter == 3:
             return discovery.kind is DiscoveryKind.BLOSSOM
         return True
 
@@ -339,6 +341,8 @@ class DiscoveryBrowserWindow(Adw.Window):
         elif discovery.kind is DiscoveryKind.LISTED_BUILDING:
             grade = discovery.attributes.get("grade", "")
             kind_label = f"Grade {grade} listed building" if grade else "Listed building"
+        elif discovery.kind is DiscoveryKind.CULTURAL_VENUE:
+            kind_label = discovery.attributes.get("category", "Cultural venue")
         else:
             kind_label = "Plaque"
         self.kind_value.set_text(kind_label)

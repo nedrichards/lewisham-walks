@@ -19,6 +19,12 @@ class DiscoveryTests(unittest.TestCase):
             kind=DiscoveryKind.LISTED_BUILDING, collection="historic-england-listed-buildings",
             source_name="Historic England", borough="Lewisham", attributes={"grade": "II*"},
         )
+        self.culture = Discovery(
+            "culture", "A cultural venue", "A public gallery", Coordinate(51.48, -0.03),
+            kind=DiscoveryKind.CULTURAL_VENUE, collection="gla-cultural-infrastructure",
+            source_name="GLA Cultural Infrastructure Map", borough="Lewisham",
+            attributes={"category": "Gallery"},
+        )
 
     def test_theme_filters_are_understandable_and_deterministic(self):
         self.assertEqual([self.local], discoveries_for_theme([self.local, self.place], RouteTheme.PEOPLE))
@@ -28,9 +34,19 @@ class DiscoveryTests(unittest.TestCase):
             [self.listed],
             discoveries_for_theme([self.local, self.place, self.listed], RouteTheme.LISTED_BUILDINGS),
         )
+        self.assertEqual(
+            [self.culture],
+            discoveries_for_theme([self.local, self.culture, self.listed], RouteTheme.CULTURE),
+        )
 
     def test_listed_building_source_label_includes_grade_and_borough(self):
         self.assertEqual("Historic England · Grade II* · Lewisham", source_label(self.listed))
+
+    def test_cultural_venue_source_label_includes_category_and_borough(self):
+        self.assertEqual(
+            "GLA Cultural Infrastructure Map · Gallery · Lewisham",
+            source_label(self.culture),
+        )
 
     def test_featured_stories_prefer_curated_records(self):
         self.assertEqual(self.local, featured_discoveries([self.place, self.local], limit=1)[0])

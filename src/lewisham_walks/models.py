@@ -14,6 +14,7 @@ class DiscoveryKind(str, Enum):
     PLAQUE = "plaque"
     BLOSSOM = "blossom"
     LISTED_BUILDING = "listed-building"
+    CULTURAL_VENUE = "cultural-venue"
 
 
 @dataclass(frozen=True)
@@ -61,6 +62,7 @@ class RouteTheme(str, Enum):
     PLACES = "places"
     LEWISHAM = "lewisham"
     LISTED_BUILDINGS = "listed-buildings"
+    CULTURE = "culture"
 
 
 @dataclass(frozen=True)

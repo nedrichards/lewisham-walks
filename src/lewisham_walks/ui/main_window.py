@@ -39,7 +39,12 @@ from ..providers.amenities import OverpassAmenityProvider
 from ..providers.geocoding import GeocodingError, PostcodesIoGeocoder, normalise_postcode
 from ..providers.location import LocationPortalProvider
 from ..providers.routing import OpenStreetMapRoutingProvider, RoutingError
-from ..store import load_seed_blossom_discoveries, load_seed_discoveries, load_seed_listed_buildings
+from ..store import (
+    load_seed_blossom_discoveries,
+    load_seed_cultural_venues,
+    load_seed_discoveries,
+    load_seed_listed_buildings,
+)
 from . import icons
 from .discovery_browser_window import DiscoveryBrowserWindow
 from .layout import (
@@ -70,6 +75,7 @@ class MainWindow(Adw.ApplicationWindow):
         "People & creativity",
         "Places & change",
         "Lewisham's own plaques",
+        "Arts, culture & creative spaces",
         "Grade I & II* listed buildings",
         "Freddy's Blossom Walk",
     ]
@@ -79,7 +85,11 @@ class MainWindow(Adw.ApplicationWindow):
         self.settings = Gio.Settings.new(APP_ID)
         self.geocoder = PostcodesIoGeocoder()
         self.location_provider = LocationPortalProvider()
-        self.all_discoveries = [*load_seed_discoveries(), *load_seed_listed_buildings()]
+        self.all_discoveries = [
+            *load_seed_discoveries(),
+            *load_seed_cultural_venues(),
+            *load_seed_listed_buildings(),
+        ]
         self.all_blossom_points = load_seed_blossom_discoveries()
         self.discoveries = featured_discoveries(self.all_discoveries)
         self.current_plan: RoutePlan | None = None
@@ -1312,6 +1322,7 @@ class MainWindow(Adw.ApplicationWindow):
             {"mode": RouteMode.DISCOVERIES, "theme": RouteTheme.PEOPLE},
             {"mode": RouteMode.DISCOVERIES, "theme": RouteTheme.PLACES},
             {"mode": RouteMode.DISCOVERIES, "theme": RouteTheme.LEWISHAM},
+            {"mode": RouteMode.DISCOVERIES, "theme": RouteTheme.CULTURE},
             {"mode": RouteMode.DISCOVERIES, "theme": RouteTheme.LISTED_BUILDINGS},
             {"mode": RouteMode.BLOSSOM_WALK, "theme": RouteTheme.SURPRISE},
         ][self.route_source_row.get_selected()]

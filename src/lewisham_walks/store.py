@@ -24,6 +24,12 @@ def load_seed_listed_buildings() -> list[Discovery]:
     return [discovery_from_record(record) for record in records]
 
 
+def load_seed_cultural_venues() -> list[Discovery]:
+    data_path = resources.files(__package__) / "data" / "cultural_venues.json"
+    records = json.loads(data_path.read_text(encoding="utf-8"))
+    return [discovery_from_record(record) for record in records]
+
+
 def discovery_from_record(record: dict) -> Discovery:
     """Read the neutral discovery schema and the two legacy seed formats.
 
@@ -35,6 +41,8 @@ def discovery_from_record(record: dict) -> Discovery:
         inferred_kind = "blossom"
     elif collection == "historic-england-listed-buildings":
         inferred_kind = "listed-building"
+    elif collection == "gla-cultural-infrastructure":
+        inferred_kind = "cultural-venue"
     else:
         inferred_kind = "plaque"
     kind = DiscoveryKind(record.get("kind", inferred_kind))
@@ -44,6 +52,8 @@ def discovery_from_record(record: dict) -> Discovery:
             source_name = "Freddy's Blossom Walk"
         elif kind is DiscoveryKind.LISTED_BUILDING:
             source_name = "Historic England"
+        elif kind is DiscoveryKind.CULTURAL_VENUE:
+            source_name = "GLA Cultural Infrastructure Map"
         else:
             source_name = "Open Plaques"
     attributes = dict(record.get("attributes", {}))

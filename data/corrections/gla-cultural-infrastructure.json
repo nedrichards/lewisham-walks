@@ -1,0 +1,268 @@
+{
+  "include_only": {
+    "archives": [
+      "Bankside Gallery",
+      "Dulwich College Archive",
+      "Dulwich Picture Gallery",
+      "Horniman Museum and Gardens",
+      "Imperial War Museum Department of Documents",
+      "Imperial War Museum Film Archive, Photographic Archive and Sound Archive",
+      "Lewisham Local History and Archives Centre",
+      "London University: Goldsmiths Library: Special Collec",
+      "National Maritime Museum: The Caird Library and Archi",
+      "Salvation Army International Heritage Centre",
+      "Shakespeare's Globe Library and Archives",
+      "South London Gallery",
+      "Southwark Local History Library and Archive",
+      "Trinity Laban Conservatoire of Music and Dance: Laban"
+    ],
+    "artists-workspaces": [
+      "APT Studios",
+      "Art Hub Studios",
+      "Art Hub Studios CIC",
+      "Beckenham Place Mansion",
+      "Bussey Building",
+      "Canada Street Studios",
+      "Cockpit Deptford",
+      "Deptford Foundry",
+      "Forma Studios Forest Hill",
+      "FormaHQ",
+      "Lewisham Arthouse",
+      "London Performance Studios",
+      "Peckham Levels",
+      "Pullens Yard",
+      "Second Floor Studios & Arts",
+      "Staffordshire Street Studios",
+      "Tannery Arts",
+      "Thames-Side Studios",
+      "V22 Hither Green",
+      "V22 Sydenham Library",
+      "Vanguard Court Studios"
+    ],
+    "libraries": [
+      "Canada Water Library",
+      "Forest Hill Library",
+      "Manor House Library",
+      "Peckham Library",
+      "Plumstead Library",
+      "The Library at Deptford Lounge",
+      "West Greenwich Library"
+    ],
+    "makerspaces": [
+      "3rd Rail Print Space",
+      "Bainbridge Print",
+      "Ceramics Studio Co-Op",
+      "Creative Nature",
+      "Flux Studios",
+      "London Sculpture Workshop",
+      "Maze Hill Pottery",
+      "Pangea Sculptors' Centre",
+      "Peckham Levels",
+      "Sonsoles Print Stuido",
+      "South London Makerspace",
+      "The Goodlife Centre",
+      "The Kiln Rooms",
+      "Thames Barrier Print Studio"
+    ],
+    "music-venues": [
+      "Aaja Music (Formerly Aaja Deptford)",
+      "Amersham Arms",
+      "Bermondsey Social Club",
+      "Buster Mantis",
+      "Deptford Albany",
+      "Fox And Firkin (The)",
+      "Gladstone Arms",
+      "Indigo At The O2",
+      "Ivy House",
+      "Jazzlive At The Crypt",
+      "M.O.T Venue Ltd",
+      "Ministry Of Sound",
+      "Music Room London",
+      "Mycenae House",
+      "New Cross Inn",
+      "Olivers Jazz Bar",
+      "Omeara",
+      "Peckham Audio",
+      "Rivoli Ballroom",
+      "Studio 338",
+      "The Broadway Theatre",
+      "The O2 Arena",
+      "Tola Peckham"
+    ],
+    "dance-performance": [
+      "AMP Gallery",
+      "AMP Studios",
+      "Asylum, Caroline Gardens Chapel",
+      "Blackheath Halls",
+      "Dilston Gallery",
+      "Greenwich Dance",
+      "Rivoli Ballroom",
+      "Shakespeare's Globe Theatre",
+      " Siobhan Davies Studios",
+      "The Bussey Building AKA The CLF Art Cafe",
+      "The O2 Arena",
+      "Trinity Laban / Laban Theatre"
+    ]
+  },
+  "exclude": [
+    "cinemas|Catford Mews",
+    "cinemas|Curzon Mondrian London",
+    "cinemas|Kino Bermondsey",
+    "cinemas|Odeon Surrey Quays",
+    "music-venues|Building Six",
+    "music-venues|Printworks",
+    "music-venues|Sugahill Cafe",
+    "theatres|Bacon's College Theatre",
+    "theatres|LSMT",
+    "theatres|Sydenham Centre",
+    "theatres|The MCT",
+    "museums|Migration Museum",
+    "music-venues|Windmill Brixton"
+  ],
+  "aliases": {
+    "archives|Imperial War Museum Department of Documents": "Imperial War Museum archives",
+    "archives|Imperial War Museum Film Archive, Photographic Archive and Sound Archive": "Imperial War Museum archives",
+    "archives|Horniman Museum and Gardens": "Horniman Museum and Gardens",
+    "archives|London University: Goldsmiths Library: Special Collec": "Goldsmiths Special Collections and Archives",
+    "archives|National Maritime Museum: The Caird Library and Archi": "Caird Library and Archive",
+    "archives|Trinity Laban Conservatoire of Music and Dance: Laban": "Trinity Laban Laban Library and Archive",
+    "artists-workspaces|Art Hub Studios": "Art Hub Deptford",
+    "artists-workspaces|Art Hub Studios CIC": "Art Hub Woolwich",
+    "artists-workspaces|Bussey Building": "Bussey Building and Copeland Park",
+    "cinemas|Cineworld The O2 Greenwich": "Cineworld at The O2",
+    "commercial-galleries|White Cube": "White Cube Bermondsey",
+    "commercial-galleries|Jerwood Space Gallery": "Jerwood Space",
+    "dance-performance|The Bussey Building AKA The CLF Art Cafe": "Bussey Building and Copeland Park",
+    "dance-performance|Dilston Gallery": "Dilston Gallery",
+    "dance-performance|Blackheath Halls": "Blackheath Halls",
+    "dance-performance|Shakespeare's Globe Theatre": "Shakespeare's Globe",
+    "dance-performance| Siobhan Davies Studios": "Siobhan Davies Studios",
+    "music-venues|Deptford Albany": "The Albany",
+    "music-venues|Aaja Deptford Limited": "Aaja Music",
+    "music-venues|Aaja Music (Formerly Aaja Deptford)": "Aaja Music",
+    "music-venues|Fox And Firkin (The)": "Fox & Firkin",
+    "music-venues|M.O.T Venue Ltd": "Venue MOT",
+    "music-venues|Ministry Of Sound": "Ministry of Sound",
+    "music-venues|Olivers Jazz Bar": "Oliver's Jazz Bar",
+    "music-venues|The O2 Arena": "The O2 Arena",
+    "museums|Dilston Gallery (Southwark Park Gallery)": "Dilston Gallery",
+    "museums|Lake Gallery (Southwark Park Galleries": "Lake Gallery at Southwark Park Galleries",
+    "museums|The Old Operating Theater Museum and Herb Garret": "The Old Operating Theatre Museum and Herb Garret",
+    "makerspaces|Sonsoles Print Stuido": "Sonsoles Print Studio",
+    "theatres|Cada Water Theatre": "Canada Water Theatre",
+    "theatres|Sam Wamaker Playhouse": "Sam Wanamaker Playhouse",
+    "theatres|Shakespeares Globe": "Shakespeare's Globe",
+    "theatres|Blackheath Halls": "Blackheath Halls",
+    "theatres|Southwark Park Galleries": "Lake Gallery at Southwark Park Galleries",
+    "theatres|The CLF Art Café": "Bussey Building and Copeland Park"
+  },
+  "records": {
+    "archives|Horniman Museum and Gardens": {
+      "lat": 51.44061193,
+      "lon": -0.059150882
+    },
+    "archives|Dulwich Picture Gallery": {
+      "lat": 51.4454594,
+      "lon": -0.084837608
+    },
+    "archives|Imperial War Museum Department of Documents": {
+      "title": "Imperial War Museum London",
+      "lat": 51.49549623,
+      "lon": -0.106744975
+    },
+    "archives|Imperial War Museum Film Archive, Photographic Archive and Sound Archive": {
+      "title": "Imperial War Museum London",
+      "lat": 51.49549623,
+      "lon": -0.106744975
+    },
+    "archives|Shakespeare's Globe Library and Archives": {
+      "title": "Shakespeare's Globe",
+      "lat": 51.50862325,
+      "lon": -0.098181097
+    },
+    "archives|Lewisham Local History and Archives Centre": {
+      "title": "Lewisham Heritage",
+      "address": "Catford Library, 23-24 Winslade Way, SE6 4JU",
+      "lat": 51.445867,
+      "lon": -0.020774,
+      "website": "https://lewisham.gov.uk/heritage",
+      "is_accurate": false,
+      "status_checked": "Official council page checked July 2026; visits by appointment"
+    },
+    "artists-workspaces|Pullens Yard": {
+      "lat": 51.48966933,
+      "lon": -0.101632723
+    },
+    "artists-workspaces|Bussey Building": {
+      "lat": 51.469934,
+      "lon": -0.067363425
+    },
+    "arts-centres|The Albany": {
+      "lat": 51.4778771,
+      "lon": -0.027409247
+    },
+    "commercial-galleries|Jerwood Space Gallery": {
+      "lat": 51.50362,
+      "lon": -0.099118829,
+      "status_checked": "Official venue website checked July 2026"
+    },
+    "commercial-galleries|White Cube": {
+      "title": "White Cube Bermondsey",
+      "lat": 51.499449,
+      "lon": -0.082680195
+    },
+    "music-venues|Aaja Music (Formerly Aaja Deptford)": {
+      "status_checked": "Curated newer of two GLA snapshot records"
+    },
+    "music-venues|Deptford Albany": {
+      "title": "The Albany",
+      "lat": 51.4778771,
+      "lon": -0.027409247
+    },
+    "music-venues|The O2 Arena": {
+      "title": "The O2 Arena",
+      "lat": 51.50292054,
+      "lon": 0.003185639
+    },
+    "dance-performance|Blackheath Halls": {
+      "lat": 51.46530269,
+      "lon": 0.007909575,
+      "borough": "Lewisham"
+    },
+    "dance-performance|The Albany": {
+      "lat": 51.4778771,
+      "lon": -0.027409247
+    },
+    "dance-performance|The Bussey Building AKA The CLF Art Cafe": {
+      "title": "Bussey Building and Copeland Park",
+      "lat": 51.469934,
+      "lon": -0.067363425
+    },
+    "museums|Dilston Gallery (Southwark Park Gallery)": {
+      "title": "Dilston Gallery",
+      "lat": 51.491814,
+      "lon": -0.054290569
+    },
+    "dance-performance|Shakespeare's Globe Theatre": {
+      "title": "Shakespeare's Globe",
+      "lat": 51.50862325,
+      "lon": -0.098181097
+    },
+    "dance-performance|Trinity Laban / Laban Theatre": {
+      "lat": 51.47906872,
+      "lon": -0.021681215
+    },
+    "theatres|The Albany": {
+      "lat": 51.4778771,
+      "lon": -0.027409247
+    },
+    "theatres|The CLF Art Café": {
+      "title": "Bussey Building and Copeland Park",
+      "lat": 51.469934,
+      "lon": -0.067363425
+    },
+    "theatres|Jazzbourne": {
+      "status_checked": "Official venue website checked July 2026"
+    }
+  }
+}

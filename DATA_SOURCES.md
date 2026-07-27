@@ -38,6 +38,36 @@ python3 scripts/import_historic_england.py /tmp/nhle-listed-buildings.geojson
 
 © Crown Copyright 2026. Contains Ordnance Survey data © Crown copyright and database right 2026. Released under the Open Government Licence v3.0. Each generated record links to its NHLE list entry. The points locate list entries but do not describe their full footprint or decide whether a particular part of a structure is protected; consult the linked official entry for authoritative details.
 
+## GLA Cultural Infrastructure Map
+
+Cultural destinations for Lewisham, Greenwich and Southwark are generated from the Greater London Authority's Cultural Infrastructure Map 2023. The source CSV files are published under the Open Government Licence v3.0:
+
+- https://data.london.gov.uk/dataset/cultural-infrastructure-map-2023-23697
+- https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/
+
+The bundled fixture was generated on 27 July 2026. Most source audits were undertaken in spring and summer 2022 and published in 2023; the music-venues CSV was updated in March 2024. This is therefore a useful cultural-infrastructure snapshot, not a live venue directory. Records tell users to check opening hours and public access before visiting.
+
+The importer applies the repository's exact borough boundaries and the review decisions in `data/corrections/gla-cultural-infrastructure.json`. It deliberately favours recognisable public destinations and distinctive creative infrastructure. Museums, public and commercial galleries, arts centres, cinemas and dedicated theatres are retained by default; archives, artists' workspaces, makerspaces, libraries, dance spaces and music venues use tighter allowlists. Generic offices, ordinary branch libraries, schools, obvious duplicates, weak pub listings and known closures are excluded. Targeted July 2026 checks also removed the closed Lewisham Migration Museum point and corrected Lewisham Heritage to its current Catford base.
+
+Download the following CSV files from the dataset page into a temporary directory, then regenerate the bundled file:
+
+```sh
+python3 scripts/import_gla_culture.py \
+  archives=/tmp/gla-culture/archives.csv \
+  artists-workspaces=/tmp/gla-culture/artists-workspaces.csv \
+  arts-centres=/tmp/gla-culture/arts-centres.csv \
+  cinemas=/tmp/gla-culture/cinemas.csv \
+  commercial-galleries=/tmp/gla-culture/commercial-galleries.csv \
+  dance-performance=/tmp/gla-culture/dance-performance.csv \
+  libraries=/tmp/gla-culture/libraries.csv \
+  makerspaces=/tmp/gla-culture/makerspaces.csv \
+  museums=/tmp/gla-culture/museums.csv \
+  music-venues=/tmp/gla-culture/music-venues.csv \
+  theatres=/tmp/gla-culture/theatres.csv
+```
+
+The source CSV files are not committed. Venue websites are retained where supplied, and generated records otherwise link back to the GLA dataset page. Re-running against a newer download requires reviewing additions, removals and the curation lists rather than treating the output as an automatic current-status feed.
+
 ## Lewisham maroon plaques
 
 Titles, inscriptions and addresses originate in a Lewisham Council document released in response to this Freedom of Information request:

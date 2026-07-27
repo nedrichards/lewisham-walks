@@ -73,6 +73,7 @@ class LewishamWalksApp(Adw.Application):
             .map-pin { background: #613583; color: white; min-width: 12px; min-height: 12px; padding: 3px; box-shadow: 0 1px 3px alpha(black, .35); }
             .map-pin.local { background: #813d5c; }
             .map-pin.listed { background: #9a6700; }
+            .map-pin.culture { background: #007f7f; }
             .route-marker { background: #1c71d8; color: white; font-weight: bold; box-shadow: 0 1px 4px alpha(black, .4); }
             .results-summary { padding: 14px; }
             .route-metrics { margin-top: 4px; }

@@ -338,6 +338,8 @@ class ShumateDiscoveryMapWidget(Gtk.Box):
             button.add_css_class("local")
         elif discovery.kind is DiscoveryKind.LISTED_BUILDING:
             button.add_css_class("listed")
+        elif discovery.kind is DiscoveryKind.CULTURAL_VENUE:
+            button.add_css_class("culture")
         selectable = self._discovery_selection_enabled and self._discovery_selected_callback is not None
         button.set_sensitive(selectable)
         if selectable:
@@ -539,6 +541,9 @@ class DiscoveryMapWidget(Gtk.DrawingArea):
             elif discovery.kind is DiscoveryKind.LISTED_BUILDING:
                 context.set_source_rgb(0.72, 0.43, 0.05)
                 radius = 4.5
+            elif discovery.kind is DiscoveryKind.CULTURAL_VENUE:
+                context.set_source_rgb(0.00, 0.48, 0.48)
+                radius = 4.2
             elif discovery.curation_status == "in_scope":
                 context.set_source_rgb(0.45, 0.25, 0.12)
                 radius = 4.5

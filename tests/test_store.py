@@ -6,6 +6,7 @@ from lewisham_walks.models import DiscoveryKind
 from lewisham_walks.store import (
     discoveries_from_openplaques_geojson,
     load_seed_blossom_discoveries,
+    load_seed_cultural_venues,
     load_seed_discoveries,
     load_seed_listed_buildings,
 )
@@ -13,7 +14,12 @@ from lewisham_walks.store import (
 
 class StoreTests(unittest.TestCase):
     def test_bundled_files_use_the_neutral_schema(self):
-        for filename in ("plaques.json", "freddys_blossom_walk.json", "listed_buildings.json"):
+        for filename in (
+            "plaques.json",
+            "freddys_blossom_walk.json",
+            "listed_buildings.json",
+            "cultural_venues.json",
+        ):
             path = resources.files("lewisham_walks") / "data" / filename
             records = json.loads(path.read_text(encoding="utf-8"))
             self.assertTrue(records)
@@ -62,6 +68,19 @@ class StoreTests(unittest.TestCase):
         self.assertTrue(all(building.kind is DiscoveryKind.LISTED_BUILDING for building in buildings))
         self.assertTrue(all(building.source_name == "Historic England" for building in buildings))
         self.assertTrue(all(building.source_url.startswith("https://historicengland.org.uk/listing/") for building in buildings))
+
+    def test_bundled_cultural_venues_are_curated_and_in_the_supported_boroughs(self):
+        venues = load_seed_cultural_venues()
+
+        self.assertEqual(165, len(venues))
+        self.assertEqual({"Greenwich", "Lewisham", "Southwark"}, {venue.borough for venue in venues})
+        self.assertTrue(all(venue.kind is DiscoveryKind.CULTURAL_VENUE for venue in venues))
+        self.assertTrue(all(venue.source_name == "GLA Cultural Infrastructure Map" for venue in venues))
+        self.assertTrue(all(venue.curation_status == "in_scope" for venue in venues))
+        self.assertNotIn("Migration Museum", {venue.title for venue in venues})
+        self.assertNotIn("Windmill Brixton", {venue.title for venue in venues})
+        self.assertIn("Museum or public gallery", {venue.attributes["category"] for venue in venues})
+        self.assertIn("Music venue", {venue.attributes["category"] for venue in venues})
 
     def test_imports_lewisham_brown_geojson_feature(self):
         payload = {
