@@ -18,7 +18,7 @@ class DiscoveryBrowserWindow(Adw.Window):
     COMPACT_BREAKPOINT = 700
     SIDEBAR_MIN_WIDTH = 280
     SIDEBAR_MAX_WIDTH = 380
-    FILTER_OPTIONS = ("Plaques", "Blossom Walk", "Everything")
+    FILTER_OPTIONS = ("Plaques", "Listed Buildings", "Blossom Walk", "Everything")
 
     def __init__(
         self,
@@ -260,6 +260,8 @@ class DiscoveryBrowserWindow(Adw.Window):
         if selected_filter == 0:
             return discovery.kind is DiscoveryKind.PLAQUE
         if selected_filter == 1:
+            return discovery.kind is DiscoveryKind.LISTED_BUILDING
+        if selected_filter == 2:
             return discovery.kind is DiscoveryKind.BLOSSOM
         return True
 
@@ -274,6 +276,7 @@ class DiscoveryBrowserWindow(Adw.Window):
                 discovery.borough,
                 discovery.collection,
                 discovery.source_name,
+                " ".join(discovery.attributes.values()),
             )
         ).casefold()
         return query in searchable
@@ -331,7 +334,14 @@ class DiscoveryBrowserWindow(Adw.Window):
             discovery.description or "There is no fuller description in the source yet."
         )
         self.area_value.set_text(discovery.borough or "Near Lewisham")
-        self.kind_value.set_text("Blossom walk" if discovery.kind is DiscoveryKind.BLOSSOM else "Plaque")
+        if discovery.kind is DiscoveryKind.BLOSSOM:
+            kind_label = "Blossom walk"
+        elif discovery.kind is DiscoveryKind.LISTED_BUILDING:
+            grade = discovery.attributes.get("grade", "")
+            kind_label = f"Grade {grade} listed building" if grade else "Listed building"
+        else:
+            kind_label = "Plaque"
+        self.kind_value.set_text(kind_label)
         self.source_value.set_text(discovery.source_name or "Local open data")
 
         self._source_uri = discovery.source_url

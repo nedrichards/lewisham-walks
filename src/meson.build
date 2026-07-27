@@ -72,6 +72,7 @@ install_data(
 install_data(
   [
     'lewisham_walks/data/freddys_blossom_walk.json',
+    'lewisham_walks/data/listed_buildings.json',
     'lewisham_walks/data/plaques.json',
   ],
   install_dir: moduledir / 'data',

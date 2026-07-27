@@ -7,12 +7,13 @@ from lewisham_walks.store import (
     discoveries_from_openplaques_geojson,
     load_seed_blossom_discoveries,
     load_seed_discoveries,
+    load_seed_listed_buildings,
 )
 
 
 class StoreTests(unittest.TestCase):
     def test_bundled_files_use_the_neutral_schema(self):
-        for filename in ("plaques.json", "freddys_blossom_walk.json"):
+        for filename in ("plaques.json", "freddys_blossom_walk.json", "listed_buildings.json"):
             path = resources.files("lewisham_walks") / "data" / filename
             records = json.loads(path.read_text(encoding="utf-8"))
             self.assertTrue(records)
@@ -51,6 +52,16 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(1, points[0].route_order)
         self.assertTrue(points[0].title.startswith("Fred's Bench"))
         self.assertEqual(12, sum(1 for point in points if point.collection == "freddys-blossom-outlying"))
+
+    def test_bundled_listed_buildings_are_high_grade_and_in_the_supported_boroughs(self):
+        buildings = load_seed_listed_buildings()
+
+        self.assertEqual(139, len(buildings))
+        self.assertEqual({"I", "II*"}, {building.attributes["grade"] for building in buildings})
+        self.assertEqual({"Greenwich", "Lewisham", "Southwark"}, {building.borough for building in buildings})
+        self.assertTrue(all(building.kind is DiscoveryKind.LISTED_BUILDING for building in buildings))
+        self.assertTrue(all(building.source_name == "Historic England" for building in buildings))
+        self.assertTrue(all(building.source_url.startswith("https://historicengland.org.uk/listing/") for building in buildings))
 
     def test_imports_lewisham_brown_geojson_feature(self):
         payload = {

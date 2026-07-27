@@ -52,7 +52,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the complete validation gate.
 
 ## Data and privacy
 
-Bundled plaques and blossom points can be explored without sending their coordinates anywhere. If location permission is granted, the desktop-provided coordinate is sent to Postcodes.io solely to find the nearest UK postcode. Manual postcode lookup also uses Postcodes.io; a route request sends selected coordinates to the routing service, while cafe and pub lookup sends the search area to OpenStreetMap services.
+Bundled plaques, high-grade listed buildings and blossom points can be explored without sending their coordinates anywhere. If location permission is granted, the desktop-provided coordinate is sent to Postcodes.io solely to find the nearest UK postcode. Manual postcode lookup also uses Postcodes.io; a route request sends selected coordinates to the routing service, while cafe and pub lookup sends the search area to OpenStreetMap services.
 
 The app stores one last successfully used start postcode in desktop settings, not a location history; map-picked coordinates are not remembered. Libshumate keeps downloaded vector tiles in the application's cache so revisiting Lewisham avoids unnecessary network traffic and can reuse available tiles offline. Lewisham Walks has no account system or analytics.
 

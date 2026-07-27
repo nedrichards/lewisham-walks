@@ -13,6 +13,7 @@ class Coordinate:
 class DiscoveryKind(str, Enum):
     PLAQUE = "plaque"
     BLOSSOM = "blossom"
+    LISTED_BUILDING = "listed-building"
 
 
 @dataclass(frozen=True)
@@ -59,6 +60,7 @@ class RouteTheme(str, Enum):
     PEOPLE = "people"
     PLACES = "places"
     LEWISHAM = "lewisham"
+    LISTED_BUILDINGS = "listed-buildings"
 
 
 @dataclass(frozen=True)

@@ -1,6 +1,6 @@
 import unittest
 
-from lewisham_walks.discovery import discoveries_for_theme, display_title, featured_discoveries
+from lewisham_walks.discovery import discoveries_for_theme, display_title, featured_discoveries, source_label
 from lewisham_walks.models import Coordinate, Discovery, DiscoveryKind, RouteTheme
 
 
@@ -14,11 +14,23 @@ class DiscoveryTests(unittest.TestCase):
             "place", "The old station building which stood on this site and served the neighbourhood",
             "The station was built here", Coordinate(51.47, -0.02), is_accurate=True,
         )
+        self.listed = Discovery(
+            "listed", "A listed hall", "Grade II* listed building", Coordinate(51.45, -0.03),
+            kind=DiscoveryKind.LISTED_BUILDING, collection="historic-england-listed-buildings",
+            source_name="Historic England", borough="Lewisham", attributes={"grade": "II*"},
+        )
 
     def test_theme_filters_are_understandable_and_deterministic(self):
         self.assertEqual([self.local], discoveries_for_theme([self.local, self.place], RouteTheme.PEOPLE))
         self.assertEqual([self.place], discoveries_for_theme([self.local, self.place], RouteTheme.PLACES))
         self.assertEqual([self.local], discoveries_for_theme([self.local, self.place], RouteTheme.LEWISHAM))
+        self.assertEqual(
+            [self.listed],
+            discoveries_for_theme([self.local, self.place, self.listed], RouteTheme.LISTED_BUILDINGS),
+        )
+
+    def test_listed_building_source_label_includes_grade_and_borough(self):
+        self.assertEqual("Historic England · Grade II* · Lewisham", source_label(self.listed))
 
     def test_featured_stories_prefer_curated_records(self):
         self.assertEqual(self.local, featured_discoveries([self.place, self.local], limit=1)[0])

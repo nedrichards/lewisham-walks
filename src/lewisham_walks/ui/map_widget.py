@@ -336,6 +336,8 @@ class ShumateDiscoveryMapWidget(Gtk.Box):
         button.add_css_class("map-pin")
         if discovery.collection == "lewisham-maroon":
             button.add_css_class("local")
+        elif discovery.kind is DiscoveryKind.LISTED_BUILDING:
+            button.add_css_class("listed")
         selectable = self._discovery_selection_enabled and self._discovery_selected_callback is not None
         button.set_sensitive(selectable)
         if selectable:
@@ -534,6 +536,9 @@ class DiscoveryMapWidget(Gtk.DrawingArea):
                 else:
                     context.set_source_rgb(0.10, 0.24, 0.62)
                 radius = 3.6
+            elif discovery.kind is DiscoveryKind.LISTED_BUILDING:
+                context.set_source_rgb(0.72, 0.43, 0.05)
+                radius = 4.5
             elif discovery.curation_status == "in_scope":
                 context.set_source_rgb(0.45, 0.25, 0.12)
                 radius = 4.5

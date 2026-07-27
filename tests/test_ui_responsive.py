@@ -159,6 +159,17 @@ class MainWindowResponsiveTests(unittest.TestCase):
         self.assertAlmostEqual(-0.045, map_widget._viewport.get_longitude())
         self.assertAlmostEqual(15.0, map_widget._viewport.get_zoom_level())
 
+    def test_listed_buildings_are_a_distinct_walk_source(self) -> None:
+        self.window.route_source_row.set_selected(4)
+        self._flush()
+
+        selected = list(self.window._selected_discoveries())
+
+        self.assertEqual(RouteTheme.LISTED_BUILDINGS, self.window._selected_route_theme())
+        self.assertTrue(selected)
+        self.assertTrue(all(item.kind is DiscoveryKind.LISTED_BUILDING for item in selected))
+        self.assertEqual({"I", "II*"}, {item.attributes["grade"] for item in selected})
+
     def test_current_location_is_shown_as_a_postcode_and_remembered(self) -> None:
         coordinate = Coordinate(51.462, -0.010)
 
@@ -593,16 +604,27 @@ class PlaqueBrowserResponsiveTests(unittest.TestCase):
             kind=DiscoveryKind.BLOSSOM, collection="freddys-blossom-walk",
             source_name="Freddy's Blossom Walk", attributes={"species": "Prunus"},
         )
-        browser = DiscoveryBrowserWindow(self.parent, [plaque, blossom])
+        listed = Discovery(
+            "listed", "A listed church", "An exceptional building", Coordinate(51.462, -0.012),
+            kind=DiscoveryKind.LISTED_BUILDING, collection="historic-england-listed-buildings",
+            source_name="Historic England", borough="Lewisham", attributes={"grade": "I"},
+        )
+        browser = DiscoveryBrowserWindow(self.parent, [plaque, listed, blossom])
         self.addCleanup(browser.destroy)
 
-        self.assertEqual({DiscoveryKind.PLAQUE, DiscoveryKind.BLOSSOM}, {item.kind for item in browser._all_discoveries})
+        self.assertEqual(
+            {DiscoveryKind.PLAQUE, DiscoveryKind.LISTED_BUILDING, DiscoveryKind.BLOSSOM},
+            {item.kind for item in browser._all_discoveries},
+        )
+        browser._show_discovery(listed)
+        self.assertEqual("Grade I listed building", browser.kind_value.get_text())
+        self.assertEqual("Historic England", browser.source_value.get_text())
         browser._show_discovery(blossom)
         self.assertEqual("A tree", browser.detail_title.get_text())
         self.assertEqual("Blossom walk", browser.kind_value.get_text())
         self.assertFalse(hasattr(browser, "details_group"))
 
-        browser.filter_dropdown.set_selected(1)
+        browser.filter_dropdown.set_selected(2)
         self._flush()
         self.assertEqual([blossom], browser._visible_discoveries)
 

@@ -18,6 +18,12 @@ def load_seed_blossom_discoveries() -> list[Discovery]:
     return [discovery_from_record(record) for record in records]
 
 
+def load_seed_listed_buildings() -> list[Discovery]:
+    data_path = resources.files(__package__) / "data" / "listed_buildings.json"
+    records = json.loads(data_path.read_text(encoding="utf-8"))
+    return [discovery_from_record(record) for record in records]
+
+
 def discovery_from_record(record: dict) -> Discovery:
     """Read the neutral discovery schema and the two legacy seed formats.
 
@@ -25,11 +31,21 @@ def discovery_from_record(record: dict) -> Discovery:
     can move to the explicit kind/collection/provenance schema independently.
     """
     collection = record.get("collection", record.get("scheme", "openplaques"))
-    inferred_kind = "blossom" if str(collection).startswith("freddys-blossom") else "plaque"
+    if str(collection).startswith("freddys-blossom"):
+        inferred_kind = "blossom"
+    elif collection == "historic-england-listed-buildings":
+        inferred_kind = "listed-building"
+    else:
+        inferred_kind = "plaque"
     kind = DiscoveryKind(record.get("kind", inferred_kind))
     source_name = record.get("source_name", "")
     if not source_name:
-        source_name = "Freddy's Blossom Walk" if kind is DiscoveryKind.BLOSSOM else "Open Plaques"
+        if kind is DiscoveryKind.BLOSSOM:
+            source_name = "Freddy's Blossom Walk"
+        elif kind is DiscoveryKind.LISTED_BUILDING:
+            source_name = "Historic England"
+        else:
+            source_name = "Open Plaques"
     attributes = dict(record.get("attributes", {}))
     if record.get("colour"):
         attributes.setdefault("colour", str(record["colour"]))

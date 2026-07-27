@@ -12,6 +12,7 @@ THEME_LABELS = {
     RouteTheme.PEOPLE: "People & creativity",
     RouteTheme.PLACES: "Places & change",
     RouteTheme.LEWISHAM: "Lewisham's own plaques",
+    RouteTheme.LISTED_BUILDINGS: "Grade I & II* listed buildings",
 }
 
 _PEOPLE_WORDS = {
@@ -47,6 +48,11 @@ def discoveries_for_theme(discoveries: list[Discovery], theme: RouteTheme) -> li
         return [discovery for discovery in discoveries if "people" in discovery_topics(discovery)]
     if theme is RouteTheme.PLACES:
         return [discovery for discovery in discoveries if "places" in discovery_topics(discovery)]
+    if theme is RouteTheme.LISTED_BUILDINGS:
+        return [
+            discovery for discovery in discoveries
+            if discovery.kind is DiscoveryKind.LISTED_BUILDING
+        ]
     return list(discoveries)
 
 
@@ -134,6 +140,13 @@ def source_label(discovery: Discovery) -> str:
         return "Lewisham maroon plaque"
     if discovery.kind is DiscoveryKind.BLOSSOM:
         return discovery.source_name or "Freddy's Blossom Walk"
+    if discovery.kind is DiscoveryKind.LISTED_BUILDING:
+        parts = [discovery.source_name or "Historic England"]
+        if grade := discovery.attributes.get("grade"):
+            parts.append(f"Grade {grade}")
+        if discovery.borough:
+            parts.append(discovery.borough)
+        return " · ".join(parts)
     if discovery.borough:
         return f"{discovery.source_name or 'Open Plaques'} · {discovery.borough}"
     return discovery.source_name or "Local discovery"
