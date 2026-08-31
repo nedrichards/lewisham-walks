@@ -79,8 +79,8 @@
             "sources": [
                 {
                     "type": "archive",
-                    "url": "https://download.gnome.org/sources/libshumate/1.6/libshumate-1.6.1.tar.xz",
-                    "sha256": "b36aad34500791785f546684d0f2ed644e4819ff4e85ae67a2245f159eccb2d4"
+                    "url": "https://download.gnome.org/sources/libshumate/1.6/libshumate-1.6.3.tar.xz",
+                    "sha256": "fd15c91396dcd82fce3021648541aa891e71a6bddeffc03d38597580a7da8ca1"
                 }
             ]
         },
