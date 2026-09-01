@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import tempfile
 import threading
 from dataclasses import replace
 from pathlib import Path
@@ -21,7 +20,7 @@ from ..discovery import (
     featured_discoveries,
     source_label,
 )
-from ..export import plan_to_gpx
+from ..export import plan_to_gpx, suggested_gpx_filename
 from ..models import (
     Coordinate,
     Discovery,
@@ -476,6 +475,7 @@ class MainWindow(Adw.ApplicationWindow):
         menu = Gio.Menu.new()
 
         settings_section = Gio.Menu.new()
+        settings_section.append("Save Walk as GPX", "app.export")
         settings_section.append("Preferences", "app.preferences")
         menu.append_section(None, settings_section)
 
@@ -1378,7 +1378,15 @@ class MainWindow(Adw.ApplicationWindow):
             self._show_error("Generate a walk before exporting GPX.")
             return
         chooser = Gtk.FileDialog.new()
-        chooser.set_initial_name("lewisham-discovery-walk.gpx")
+        chooser.set_title("Save Walk as GPX")
+        chooser.set_initial_name(suggested_gpx_filename(self.current_plan))
+        gpx_filter = Gtk.FileFilter.new()
+        gpx_filter.set_name("GPX route files")
+        gpx_filter.add_pattern("*.gpx")
+        filters = Gio.ListStore.new(Gtk.FileFilter)
+        filters.append(gpx_filter)
+        chooser.set_filters(filters)
+        chooser.set_default_filter(gpx_filter)
         chooser.save(self, None, self._finish_export_gpx)
 
     def _set_export_enabled(self, enabled: bool) -> None:
@@ -1397,19 +1405,52 @@ class MainWindow(Adw.ApplicationWindow):
             file = dialog.save_finish(result)
             if file is None:
                 return
-            gpx = plan_to_gpx(self.current_plan)
-            path = file.get_path()
-            if path is None:
-                tmp = Path(tempfile.gettempdir()) / "lewisham-discovery-walk.gpx"
-                tmp.write_text(gpx, encoding="utf-8")
-            else:
-                Path(path).write_text(gpx, encoding="utf-8")
-            self.toast_overlay.add_toast(Adw.Toast.new("GPX exported"))
-        except GLib.Error:
+        except GLib.Error as error:
+            if error.matches(Gtk.DialogError.quark(), Gtk.DialogError.DISMISSED):
+                return
+            self.toast_overlay.add_toast(Adw.Toast.new(f"Could not choose a GPX destination: {error.message}"))
             return
+
+        try:
+            file = self._ensure_gpx_extension(file)
+            contents = plan_to_gpx(self.current_plan).encode("utf-8")
+            file.replace_contents(
+                contents,
+                None,
+                False,
+                Gio.FileCreateFlags.REPLACE_DESTINATION,
+                None,
+            )
+            self._show_export_success(file)
         # File-dialog callbacks must report unexpected serialization and I/O failures.
         except Exception as error:  # noqa: BLE001
-            self._show_error(f"Could not export GPX: {error}")
+            self.toast_overlay.add_toast(Adw.Toast.new(f"Could not save GPX: {error}"))
+
+    def _ensure_gpx_extension(self, file: Gio.File) -> Gio.File:
+        basename = file.get_basename()
+        if basename and not basename.lower().endswith(".gpx"):
+            parent = file.get_parent()
+            if parent is not None:
+                return parent.get_child(f"{basename}.gpx")
+        return file
+
+    def _show_export_success(self, file: Gio.File) -> None:
+        toast = Adw.Toast.new(f"Saved {file.get_basename() or 'GPX route'}")
+        parent = file.get_parent()
+        if parent is not None:
+            toast.set_button_label("Open Folder")
+            toast.connect("button-clicked", self._open_export_folder, parent)
+        self.toast_overlay.add_toast(toast)
+
+    def _open_export_folder(self, _toast: Adw.Toast, folder: Gio.File) -> None:
+        launcher = Gtk.FileLauncher.new(folder)
+        launcher.launch(self, None, self._finish_open_export_folder)
+
+    def _finish_open_export_folder(self, launcher: Gtk.FileLauncher, result) -> None:
+        try:
+            launcher.launch_finish(result)
+        except GLib.Error as error:
+            self.toast_overlay.add_toast(Adw.Toast.new(f"Could not open the folder: {error.message}"))
 
     def _show_error(self, message: str) -> None:
         self.results_page.set_visible(True)

@@ -25,7 +25,7 @@
             </child>
             <child>
               <object class="GtkShortcutsShortcut">
-                <property name="title">Export the current walk</property>
+                <property name="title">Save the current walk as GPX</property>
                 <property name="action-name">app.export</property>
                 <property name="accelerator">&lt;Primary&gt;e</property>
               </object>

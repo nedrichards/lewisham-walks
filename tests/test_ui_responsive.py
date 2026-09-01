@@ -565,6 +565,36 @@ class MainWindowResponsiveTests(unittest.TestCase):
 
         self.assertIsNone(self.window._stories_window)
 
+    def test_gpx_export_writes_the_selected_gio_file(self) -> None:
+        self.window.current_plan = mock.Mock()
+        destination = mock.Mock()
+        destination.get_basename.return_value = "my-lewisham-walk.gpx"
+        destination.get_parent.return_value = mock.Mock()
+        dialog = mock.Mock()
+        dialog.save_finish.return_value = destination
+
+        with (
+            mock.patch("lewisham_walks.ui.main_window.plan_to_gpx", return_value="<gpx />"),
+            mock.patch.object(self.window, "_show_export_success") as show_success,
+        ):
+            self.window._finish_export_gpx(dialog, mock.Mock())
+
+        destination.replace_contents.assert_called_once_with(
+            b"<gpx />",
+            None,
+            False,
+            Gio.FileCreateFlags.REPLACE_DESTINATION,
+            None,
+        )
+        show_success.assert_called_once_with(destination)
+
+    def test_gpx_export_adds_a_missing_extension(self) -> None:
+        destination = Gio.File.new_for_uri("smb://example.local/walks/lewisham-route")
+
+        result = self.window._ensure_gpx_extension(destination)
+
+        self.assertEqual("smb://example.local/walks/lewisham-route.gpx", result.get_uri())
+
     def test_story_browser_handoff_focuses_the_map(self) -> None:
         discovery = self.window.all_discoveries[0]
         self.window.split_view.set_show_sidebar(True)

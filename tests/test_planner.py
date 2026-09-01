@@ -1,6 +1,7 @@
 import unittest
+from xml.etree import ElementTree
 
-from lewisham_walks.export import plan_to_gpx
+from lewisham_walks.export import GPX_NAMESPACE, plan_to_gpx, suggested_gpx_filename
 from lewisham_walks.models import (
     AmenityStop,
     Coordinate,
@@ -161,6 +162,15 @@ class PlannerTests(unittest.TestCase):
         gpx = plan_to_gpx(plan)
         self.assertIn("<gpx", gpx)
         self.assertIn("<trkpt", gpx)
+
+        root = ElementTree.fromstring(gpx)  # noqa: S314 - parsing output generated in this test
+        namespace = {"gpx": GPX_NAMESPACE}
+        self.assertEqual(f"{{{GPX_NAMESPACE}}}gpx", root.tag)
+        self.assertEqual("Lewisham discovery walk", root.findtext("gpx:metadata/gpx:name", namespaces=namespace))
+        self.assertEqual("Start", root.findtext("gpx:wpt/gpx:name", namespaces=namespace))
+        self.assertEqual(len(plan.visits) + 1, len(root.findall("gpx:wpt", namespace)))
+        self.assertEqual(len(plan.geometry), len(root.findall("gpx:trk/gpx:trkseg/gpx:trkpt", namespace)))
+        self.assertEqual("lewisham-surprise-walk.gpx", suggested_gpx_filename(plan))
 
     def test_a_nearby_border_discovery_can_beat_a_farther_lewisham_one(self):
         start = Coordinate(51.4900, -0.0350)
