@@ -83,6 +83,7 @@ class LewishamWalksApp(Adw.Application):
             .route-badge { background: alpha(@accent_bg_color, .14); color: @accent_color; border-radius: 999px; min-width: 28px; min-height: 28px; margin: 0 4px 0 2px; font-weight: bold; }
             .route-detail { padding: 14px; }
             .route-warning { background: alpha(@warning_bg_color, .14); color: @warning_color; border-radius: 10px; padding: 10px 12px; }
+            .map-story-card { background-color: @window_bg_color; color: @window_fg_color; border-radius: 12px; padding: 14px 16px 16px 16px; box-shadow: 0 4px 18px alpha(black, .4); }
             .story-kind { font-size: .8em; }
             .story-kind.plaque { color: #c061cb; }
             .story-kind.listed { color: #e5a50a; }

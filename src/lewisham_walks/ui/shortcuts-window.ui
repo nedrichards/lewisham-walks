@@ -37,6 +37,12 @@
                 <property name="accelerator">F9</property>
               </object>
             </child>
+            <child>
+              <object class="GtkShortcutsShortcut">
+                <property name="title">Close map preview</property>
+                <property name="accelerator">Escape</property>
+              </object>
+            </child>
           </object>
         </child>
         <child>

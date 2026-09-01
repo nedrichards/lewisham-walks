@@ -30,6 +30,7 @@ def _load_gtk():
 Adw, Gio, GLib, Gtk, GTK_IMPORT_ERROR = _load_gtk()
 
 if Adw is not None:
+    from lewisham_walks.discovery import display_title, source_label
     from lewisham_walks.main import LewishamWalksApp
     from lewisham_walks.models import (
         Coordinate,
@@ -604,6 +605,67 @@ class MainWindowResponsiveTests(unittest.TestCase):
 
         focus_discovery.assert_called_once_with(discovery)
         self.assertFalse(self.window.split_view.get_show_sidebar())
+        self.assertTrue(self.window.map_flyout_revealer.get_reveal_child())
+        self.assertGreaterEqual(self.window.map_flyout_revealer.get_margin_bottom(), 40)
+        self.assertIs(discovery, self.window._map_flyout_discovery)
+
+    def test_map_story_selection_stays_on_the_map_until_full_story_is_requested(self) -> None:
+        discovery = self.window.all_discoveries[0]
+        self.window.split_view.set_show_sidebar(False)
+
+        self.window._show_map_discovery_flyout(discovery)
+
+        self.assertFalse(self.window.split_view.get_show_sidebar())
+        self.assertTrue(self.window.map_flyout_revealer.get_reveal_child())
+        self.assertEqual(display_title(discovery), self.window.map_flyout_title.get_text())
+        self.assertEqual(source_label(discovery), self.window.map_flyout_kicker.get_text())
+        self.assertLessEqual(len(self.window.map_flyout_description.get_text()), 240)
+
+        stories_window = mock.Mock()
+        with mock.patch.object(
+            self.window,
+            "_show_discovery_browser",
+            side_effect=lambda _button: setattr(self.window, "_stories_window", stories_window),
+        ):
+            self.window._open_map_discovery_story(None)
+
+        stories_window.show_discovery.assert_called_once_with(discovery)
+
+        self.window._hide_map_flyout()
+        self.assertFalse(self.window.map_flyout_revealer.get_reveal_child())
+        self.assertIsNone(self.window._map_flyout_discovery)
+
+    def test_escape_closes_map_flyout_and_returns_focus_to_the_map(self) -> None:
+        discovery = self.window.all_discoveries[0]
+        self.window._show_map_discovery_flyout(discovery)
+
+        self.assertEqual(Gtk.ShortcutScope.MANAGED, self.window.map_flyout_shortcut_controller.get_scope())
+        self.assertEqual("Escape", self.window.map_flyout_escape_shortcut.get_trigger().to_string())
+        with mock.patch.object(self.window.map_widget, "grab_focus", return_value=True) as focus_map:
+            handled = self.window._dismiss_map_flyout_shortcut()
+
+        self.assertTrue(handled)
+        self.assertFalse(self.window.map_flyout_revealer.get_reveal_child())
+        focus_map.assert_called_once_with()
+        self.assertFalse(self.window._dismiss_map_flyout_shortcut())
+
+    def test_route_map_markers_use_the_same_inline_flyout(self) -> None:
+        visit = RouteVisit(
+            kind="cafe",
+            title="A local cafe",
+            coordinate=Coordinate(51.462, -0.010),
+            address="Lewisham High Street",
+        )
+
+        self.window._show_map_visit_flyout(visit)
+
+        self.assertTrue(self.window.map_flyout_revealer.get_reveal_child())
+        self.assertIs(visit, self.window._map_flyout_visit)
+        self.assertIsNone(self.window._map_flyout_discovery)
+        self.assertEqual("Cafe stop", self.window.map_flyout_kicker.get_text())
+        self.assertEqual("A local cafe", self.window.map_flyout_title.get_text())
+        self.assertEqual("Cafe stop selected for this walk.", self.window.map_flyout_description.get_text())
+        self.assertFalse(self.window.map_flyout_full_story_button.get_visible())
 
     def test_selectable_map_points_use_the_normal_selection_cursor(self) -> None:
         map_widget = self.window.map_widget

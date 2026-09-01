@@ -10,7 +10,7 @@ import gi
 gi.require_version("Adw", "1")
 gi.require_version("Gtk", "4.0")
 
-from gi.repository import Adw, Gio, GLib, Gtk
+from gi.repository import Adw, Gio, GLib, Gtk, Pango
 
 from .. import APP_ID
 from ..discovery import (
@@ -454,7 +454,11 @@ class MainWindow(Adw.ApplicationWindow):
         self.split_view.set_content(self.map_pane)
 
         self.map_widget = self._create_map()
-        self.map_pane.append(self.map_widget)
+        self.map_overlay = Gtk.Overlay.new()
+        self.map_overlay.set_child(self.map_widget)
+        self.map_pane.append(self.map_overlay)
+        self._build_map_flyout()
+        self._install_map_flyout_shortcuts()
         planner_page = self.controls_stack.add_titled(self.planner_section, "planner", "Plan")
         planner_page.set_icon_name(icons.PLAN)
         self.results_page = self.controls_stack.add_titled(self.results_section, "results", "Walk")
@@ -470,6 +474,83 @@ class MainWindow(Adw.ApplicationWindow):
         self._apply_responsive_layout(self.get_default_size()[0], self.get_default_size()[1])
         self._update_end_postcode_state()
         self._render_initial_results()
+
+    def _build_map_flyout(self) -> None:
+        self._map_flyout_discovery: Discovery | None = None
+        self._map_flyout_visit: RouteVisit | None = None
+        self.map_flyout_revealer = Gtk.Revealer.new()
+        self.map_flyout_revealer.set_transition_type(Gtk.RevealerTransitionType.SLIDE_UP)
+        self.map_flyout_revealer.set_transition_duration(220)
+        self.map_flyout_revealer.set_halign(Gtk.Align.FILL)
+        self.map_flyout_revealer.set_valign(Gtk.Align.END)
+        self.map_flyout_revealer.set_margin_start(16)
+        self.map_flyout_revealer.set_margin_end(16)
+        self.map_flyout_revealer.set_margin_bottom(42)
+        self.map_flyout_revealer.set_reveal_child(False)
+        self.map_overlay.add_overlay(self.map_flyout_revealer)
+
+        clamp = Adw.Clamp.new()
+        clamp.set_maximum_size(460)
+        clamp.set_tightening_threshold(360)
+        self.map_flyout_revealer.set_child(clamp)
+
+        card = Gtk.Box.new(Gtk.Orientation.VERTICAL, 8)
+        card.add_css_class("card")
+        card.add_css_class("map-story-card")
+        clamp.set_child(card)
+
+        header = Gtk.Box.new(Gtk.Orientation.HORIZONTAL, 8)
+        card.append(header)
+        self.map_flyout_kicker = Gtk.Label.new("")
+        self.map_flyout_kicker.set_xalign(0)
+        self.map_flyout_kicker.set_hexpand(True)
+        self.map_flyout_kicker.set_ellipsize(Pango.EllipsizeMode.END)
+        self.map_flyout_kicker.add_css_class("caption-heading")
+        header.append(self.map_flyout_kicker)
+
+        self.map_flyout_close_button = Gtk.Button.new_from_icon_name(icons.CLOSE)
+        self.map_flyout_close_button.add_css_class("flat")
+        self.map_flyout_close_button.set_tooltip_text("Close map preview")
+        self.map_flyout_close_button.connect("clicked", self._dismiss_map_flyout)
+        header.append(self.map_flyout_close_button)
+
+        self.map_flyout_title = Gtk.Label.new("")
+        self.map_flyout_title.set_xalign(0)
+        self.map_flyout_title.set_wrap(True)
+        self.map_flyout_title.set_wrap_mode(Pango.WrapMode.WORD_CHAR)
+        self.map_flyout_title.add_css_class("title-4")
+        card.append(self.map_flyout_title)
+
+        self.map_flyout_location = Gtk.Label.new("")
+        self.map_flyout_location.set_xalign(0)
+        self.map_flyout_location.set_wrap(True)
+        self.map_flyout_location.add_css_class("dim-label")
+        self.map_flyout_location.add_css_class("caption")
+        card.append(self.map_flyout_location)
+
+        self.map_flyout_description = Gtk.Label.new("")
+        self.map_flyout_description.set_xalign(0)
+        self.map_flyout_description.set_wrap(True)
+        self.map_flyout_description.set_wrap_mode(Pango.WrapMode.WORD_CHAR)
+        card.append(self.map_flyout_description)
+
+        self.map_flyout_full_story_button = Gtk.Button.new_with_label("Full Story")
+        self.map_flyout_full_story_button.set_halign(Gtk.Align.START)
+        self.map_flyout_full_story_button.add_css_class("pill")
+        self.map_flyout_full_story_button.add_css_class("suggested-action")
+        self.map_flyout_full_story_button.connect("clicked", self._open_map_discovery_story)
+        card.append(self.map_flyout_full_story_button)
+
+    def _install_map_flyout_shortcuts(self) -> None:
+        trigger = Gtk.ShortcutTrigger.parse_string("Escape")
+        if trigger is None:
+            raise RuntimeError("GTK could not create the map-preview Escape shortcut")
+        action = Gtk.CallbackAction.new(self._dismiss_map_flyout_shortcut)
+        self.map_flyout_escape_shortcut = Gtk.Shortcut.new(trigger, action)
+        self.map_flyout_shortcut_controller = Gtk.ShortcutController.new()
+        self.map_flyout_shortcut_controller.set_scope(Gtk.ShortcutScope.MANAGED)
+        self.map_flyout_shortcut_controller.add_shortcut(self.map_flyout_escape_shortcut)
+        self.map_overlay.add_controller(self.map_flyout_shortcut_controller)
 
     def _create_primary_menu(self) -> Gio.Menu:
         menu = Gio.Menu.new()
@@ -531,9 +612,9 @@ class MainWindow(Adw.ApplicationWindow):
         if hasattr(map_widget, "set_location_selected_callback"):
             map_widget.set_location_selected_callback(self._on_map_location_selected)
         if hasattr(map_widget, "set_discovery_selected_callback"):
-            map_widget.set_discovery_selected_callback(self._show_discovery_details)
+            map_widget.set_discovery_selected_callback(self._show_map_discovery_flyout)
         if hasattr(map_widget, "set_visit_selected_callback"):
-            map_widget.set_visit_selected_callback(self._show_route_visit_details)
+            map_widget.set_visit_selected_callback(self._show_map_visit_flyout)
         return map_widget
 
     def _apply_responsive_layout(self, width: int, height: int) -> None:
@@ -583,6 +664,7 @@ class MainWindow(Adw.ApplicationWindow):
         self.sidebar_button.set_tooltip_text("Hide walk planner" if show_sidebar else "Show walk planner")
 
     def _render_initial_results(self) -> None:
+        self._hide_map_flyout()
         while child := self.result_list.get_first_child():
             self.result_list.remove(child)
         self._hide_detail_panel()
@@ -674,7 +756,69 @@ class MainWindow(Adw.ApplicationWindow):
         if hasattr(self.map_widget, "focus_discovery"):
             self.map_widget.focus_discovery(discovery)
         self.split_view.set_show_sidebar(False)
-        self.toast_overlay.add_toast(Adw.Toast.new(f"Showing {display_title(discovery)} on the map."))
+        self._show_map_discovery_flyout(discovery)
+
+    def _show_map_discovery_flyout(self, discovery: Discovery) -> None:
+        self._map_flyout_discovery = discovery
+        self._map_flyout_visit = None
+        self.map_flyout_kicker.set_text(source_label(discovery))
+        self.map_flyout_title.set_text(display_title(discovery))
+        self.map_flyout_location.set_text(discovery.address or discovery.borough or discovery.coordinate_label)
+        description = discovery.description or "There is no fuller description in the source yet."
+        self.map_flyout_description.set_text(self._story_excerpt(description))
+        self.map_flyout_full_story_button.set_visible(True)
+        self.map_flyout_revealer.set_reveal_child(True)
+        self._focus_map_flyout()
+
+    def _show_map_visit_flyout(self, visit: RouteVisit) -> None:
+        self._map_flyout_discovery = None
+        self._map_flyout_visit = visit
+        self.map_flyout_kicker.set_text(f"{visit.kind.replace('_', ' ').title()} stop")
+        self.map_flyout_title.set_text(visit.title)
+        self.map_flyout_location.set_text(visit.address or visit.coordinate_label)
+        self.map_flyout_description.set_text(self._route_visit_description(visit))
+        self.map_flyout_full_story_button.set_visible(False)
+        self.map_flyout_revealer.set_reveal_child(True)
+        self._focus_map_flyout()
+
+    def _focus_map_flyout(self) -> None:
+        if not self.get_mapped():
+            return
+        target = (
+            self.map_flyout_full_story_button
+            if self.map_flyout_full_story_button.get_visible()
+            else self.map_flyout_close_button
+        )
+        target.grab_focus()
+
+    def _hide_map_flyout(self, _button=None) -> None:
+        self._map_flyout_discovery = None
+        self._map_flyout_visit = None
+        self.map_flyout_revealer.set_reveal_child(False)
+
+    def _dismiss_map_flyout(self, _button=None) -> None:
+        self._hide_map_flyout()
+        self.map_widget.grab_focus()
+
+    def _dismiss_map_flyout_shortcut(self, *_args) -> bool:
+        if not self.map_flyout_revealer.get_reveal_child():
+            return False
+        self._dismiss_map_flyout()
+        return True
+
+    def _open_map_discovery_story(self, _button) -> None:
+        discovery = self._map_flyout_discovery
+        if discovery is None:
+            return
+        self._show_discovery_browser(None)
+        if self._stories_window is not None:
+            self._stories_window.show_discovery(discovery)
+
+    def _story_excerpt(self, description: str, limit: int = 240) -> str:
+        text = " ".join(description.split())
+        if len(text) <= limit:
+            return text
+        return f"{text[: limit - 1].rstrip()}…"
 
     def _generate_walk(self, _button) -> None:
         if self._generating or self._locating_start:
@@ -1069,6 +1213,7 @@ class MainWindow(Adw.ApplicationWindow):
             self.map_widget.set_discovery_selection_enabled(enabled)
 
     def _render_plan(self, plan: RoutePlan) -> None:
+        self._hide_map_flyout()
         self.results_page.set_visible(True)
         self.controls_switcher.set_visible(True)
         self._set_export_enabled(True)

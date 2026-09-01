@@ -378,6 +378,21 @@ class DiscoveryBrowserWindow(Adw.Window):
         if adjustment is not None:
             adjustment.set_value(0)
 
+    def show_discovery(self, discovery: Discovery) -> None:
+        """Present a specific story selected from another app surface."""
+        self.search_entry.set_text("")
+        self.filter_dropdown.set_selected(len(self.FILTER_OPTIONS) - 1)
+        self._apply_filter()
+        row = self.list_box.get_first_child()
+        while row is not None:
+            if getattr(row, "discovery", None) == discovery:
+                self.list_box.select_row(row)
+                break
+            row = row.get_next_sibling()
+        self._show_discovery(discovery)
+        if self.split_view.get_collapsed():
+            self.split_view.set_show_sidebar(False)
+
     def _show_empty_details(self) -> None:
         self._current_discovery = None
         self.detail_kicker.set_text("No matches")
