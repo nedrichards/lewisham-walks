@@ -1,4 +1,5 @@
 import unittest
+from dataclasses import replace
 from unittest import mock
 
 
@@ -150,6 +151,7 @@ class MainWindowResponsiveTests(unittest.TestCase):
 
         self.assertAlmostEqual(51.462, map_widget._viewport.get_latitude(), delta=0.02)
         self.assertAlmostEqual(-0.010, map_widget._viewport.get_longitude(), delta=0.02)
+        self.assertAlmostEqual(9.0, map_widget._viewport.get_zoom_level())
         map_widget._viewport.set_location(51.475, -0.045)
         map_widget._viewport.set_zoom_level(15.0)
 
@@ -158,6 +160,21 @@ class MainWindowResponsiveTests(unittest.TestCase):
         self.assertAlmostEqual(51.475, map_widget._viewport.get_latitude())
         self.assertAlmostEqual(-0.045, map_widget._viewport.get_longitude())
         self.assertAlmostEqual(15.0, map_widget._viewport.get_zoom_level())
+
+    def test_completed_map_animation_schedules_a_final_viewport_refresh(self) -> None:
+        map_widget = self.window.map_widget
+        if not hasattr(map_widget, "_viewport"):
+            self.skipTest("Libshumate viewport is unavailable")
+
+        if map_widget._discovery_refresh_source_id:
+            GLib.source_remove(map_widget._discovery_refresh_source_id)
+            map_widget._discovery_refresh_source_id = 0
+
+        map_widget._on_go_to_completed(map_widget._map)
+
+        self.assertNotEqual(0, map_widget._discovery_refresh_source_id)
+        GLib.source_remove(map_widget._discovery_refresh_source_id)
+        map_widget._discovery_refresh_source_id = 0
 
     def test_listed_buildings_are_a_distinct_walk_source(self) -> None:
         self.window.route_source_row.set_selected(5)
@@ -332,6 +349,14 @@ class MainWindowResponsiveTests(unittest.TestCase):
                 self.assertTrue(icon_theme.has_icon(icon_name))
 
     def test_plan_and_results_are_full_height_pages_at_every_width(self) -> None:
+        self.assertFalse(self.window.results_page.get_visible())
+        self.assertFalse(self.window.controls_switcher.get_visible())
+        self.assertFalse(self.window.export_button.get_sensitive())
+        self.assertFalse(self.window.save_gpx_button.get_visible())
+        self.assertFalse(self.window.save_gpx_button.get_sensitive())
+
+        self.window.results_page.set_visible(True)
+        self.window.controls_switcher.set_visible(True)
         for width in (1440, 390):
             with self.subTest(width=width):
                 self.window._apply_responsive_layout(width, 720)
@@ -395,6 +420,12 @@ class MainWindowResponsiveTests(unittest.TestCase):
 
         self.window._render_plan(plan)
 
+        self.assertTrue(self.window.results_page.get_visible())
+        self.assertTrue(self.window.controls_switcher.get_visible())
+        self.assertTrue(self.window.export_button.get_sensitive())
+        self.assertTrue(self.window.save_gpx_button.get_visible())
+        self.assertTrue(self.window.save_gpx_button.get_sensitive())
+        self.assertEqual("Save GPX", self.window.save_gpx_button.get_child().get_label())
         self.assertEqual(self.window.summary_title.get_text(), "People & creativity")
         self.assertEqual(self.window.distance_value.get_text(), "1.2 km")
         self.assertEqual(self.window.duration_value.get_text(), "18 min")
@@ -436,16 +467,22 @@ class MainWindowResponsiveTests(unittest.TestCase):
         self.assertTrue(self.window.directions_summary.has_css_class("route-warning"))
         self.assertIn("do not follow roads", self.window.directions_summary.get_text())
 
+        plan.discoveries[0] = replace(story, title="Fox & Firkin")
+        self.window._render_directions(plan)
+        self.assertEqual("To Fox &amp; Firkin", self.window.direction_leg_groups[0].get_title())
+
     def test_compact_layout_releases_the_desktop_minimum_width(self) -> None:
-        self.window._apply_responsive_layout(390, 780)
-        self._flush()
+        for width in (390, 360):
+            with self.subTest(width=width):
+                self.window._apply_responsive_layout(width, 780)
+                self._flush()
 
-        minimum, _natural, _minimum_baseline, _natural_baseline = self.window.measure(
-            Gtk.Orientation.HORIZONTAL,
-            -1,
-        )
+                minimum, _natural, _minimum_baseline, _natural_baseline = self.window.measure(
+                    Gtk.Orientation.HORIZONTAL,
+                    -1,
+                )
 
-        self.assertLessEqual(minimum, 390)
+                self.assertLessEqual(minimum, width)
 
     def test_wide_layout_can_cross_its_own_compact_breakpoint(self) -> None:
         self.window._apply_responsive_layout(1440, 780)
@@ -633,12 +670,13 @@ class PlaqueBrowserResponsiveTests(unittest.TestCase):
         self.assertTrue(self.window.split_view.get_pin_sidebar())
         self.assertTrue(self.window.split_view.get_show_sidebar())
 
-    def test_explicit_close_action_destroys_the_window(self) -> None:
+    def test_browser_uses_the_native_close_control(self) -> None:
         close_requests = []
         self.window.connect("close-request", lambda *_args: close_requests.append(True) and False)
         self.window.present()
 
-        self.window.close_button.emit("clicked")
+        self.assertTrue(self.window.header.get_show_end_title_buttons())
+        self.window.close()
         self._flush()
 
         self.assertEqual(close_requests, [True])
@@ -676,19 +714,21 @@ class PlaqueBrowserResponsiveTests(unittest.TestCase):
             },
             {item.kind for item in browser._all_discoveries},
         )
+        self.assertEqual("Highlights", browser.filter_dropdown.get_selected_item().get_string())
         browser._show_discovery(listed)
-        self.assertEqual("Grade I listed building", browser.kind_value.get_text())
-        self.assertEqual("Historic England", browser.source_value.get_text())
+        self.assertEqual("Grade I listed building", browser.kind_value.get_subtitle())
+        self.assertEqual("Historic England", browser.source_value.get_subtitle())
+        self.assertTrue(browser.map_preview_frame.get_visible())
         browser._show_discovery(blossom)
         self.assertEqual("A tree", browser.detail_title.get_text())
-        self.assertEqual("Blossom walk", browser.kind_value.get_text())
+        self.assertEqual("Blossom walk", browser.kind_value.get_subtitle())
         self.assertFalse(hasattr(browser, "details_group"))
 
-        browser.filter_dropdown.set_selected(2)
+        browser.filter_dropdown.set_selected(3)
         self._flush()
         self.assertEqual([culture], browser._visible_discoveries)
 
-        browser.filter_dropdown.set_selected(3)
+        browser.filter_dropdown.set_selected(4)
         self._flush()
         self.assertEqual([blossom], browser._visible_discoveries)
 

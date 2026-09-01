@@ -89,6 +89,13 @@ class ShumateDiscoveryMapWidget(Gtk.Box):
 
         self._map = self._map_view.get_map()
         self._viewport = self._map_view.get_viewport()
+        self._map.connect("animation-completed::go-to", self._on_go_to_completed)
+        self._map.connect("notify::state", self._schedule_discovery_refresh)
+        # Establish the real geographic centre before the first frame. The
+        # later go-to still provides the initial zoom animation, without also
+        # animating from Libshumate's global (0, 0) default.
+        self._viewport.set_location(51.462, -0.010)
+        self._viewport.set_zoom_level(9.0)
         for property_name in ("latitude", "longitude", "zoom-level"):
             self._viewport.connect(f"notify::{property_name}", self._schedule_discovery_refresh)
         self._map_view.connect("notify::width", self._schedule_discovery_refresh)
@@ -239,12 +246,23 @@ class ShumateDiscoveryMapWidget(Gtk.Box):
             self._refresh_visible_discoveries,
         )
 
+    def _on_go_to_completed(self, _map) -> None:
+        # Marker overlays can finish following the viewport while the cached
+        # vector layer still holds its last animation frame. Explicitly redraw
+        # the map at the settled viewport and run one final discovery pass.
+        self._map.queue_draw()
+        self._schedule_discovery_refresh()
+
     def _refresh_visible_discoveries(self) -> bool:
         self._discovery_refresh_source_id = 0
         width = self._map_view.get_width()
         height = self._map_view.get_height()
         if width <= 1 or height <= 1:
             return GLib.SOURCE_REMOVE
+        # Tile loading can settle independently of viewport animation. Redraw
+        # here as well as on animation completion so cached or newly rendered
+        # vector tiles cannot leave the marker overlays on a stale base frame.
+        self._map.queue_draw()
         try:
             corners = [
                 self._viewport.widget_coords_to_location(self._map_view, x, y)

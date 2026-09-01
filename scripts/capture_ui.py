@@ -27,16 +27,16 @@ def main() -> int:
     if len(sys.argv) not in (2, 4, 5):
         raise SystemExit(
             "usage: capture_ui.py OUTPUT.png [WIDTH HEIGHT "
-            "[plan|results|route|directions|map|stories|shortcuts|about]]"
+            "[plan|results|route|directions|map|stories|story|shortcuts|about]]"
         )
     output = Path(sys.argv[1]).resolve()
     width, height = (int(sys.argv[2]), int(sys.argv[3])) if len(sys.argv) == 4 else (1440, 820)
     if len(sys.argv) == 5:
         width, height = int(sys.argv[2]), int(sys.argv[3])
     page = sys.argv[4] if len(sys.argv) == 5 else "plan"
-    if page not in {"plan", "results", "route", "directions", "map", "stories", "shortcuts", "about"}:
+    if page not in {"plan", "results", "route", "directions", "map", "stories", "story", "shortcuts", "about"}:
         raise SystemExit(
-            "page must be 'plan', 'results', 'route', 'directions', 'map', 'stories', 'shortcuts' or 'about'"
+            "page must be 'plan', 'results', 'route', 'directions', 'map', 'stories', 'story', 'shortcuts' or 'about'"
         )
     Adw.init()
     settings = Gtk.Settings.get_default()
@@ -50,7 +50,7 @@ def main() -> int:
     if not app.register():
         raise RuntimeError("Could not register the capture application")
     window = MainWindow(app)
-    if page == "stories":
+    if page in {"stories", "story"}:
         target_window = DiscoveryBrowserWindow(
             window,
             [*window.all_discoveries, *window.all_blossom_points],
@@ -59,7 +59,7 @@ def main() -> int:
     else:
         target_window = window
         window._apply_responsive_layout(width, height)
-        if page in {"route", "directions"}:
+        if page in {"results", "route", "directions"}:
             plan = RoutePlanner(window.all_discoveries).plan(
                 RouteRequest(
                     start=Coordinate(51.462, -0.010),
@@ -85,10 +85,14 @@ def main() -> int:
     capture_errors: list[Exception] = []
 
     def settle_layout() -> bool:
-        if page != "stories":
+        if page not in {"stories", "story"}:
             window._apply_responsive_layout(window.get_width(), window.get_height())
         if page == "map":
             window.sidebar_button.set_active(False)
+        if page == "story":
+            row = target_window.list_box.get_first_child()
+            if row is not None:
+                target_window.list_box.emit("row-activated", row)
         return GLib.SOURCE_REMOVE
 
     def capture() -> bool:

@@ -9,16 +9,24 @@ gi.require_version("Gtk", "4.0")
 
 from gi.repository import Adw, Gtk
 
-from ..discovery import display_title, source_label
+from ..discovery import display_title, featured_discoveries, source_label
 from ..models import Discovery, DiscoveryKind
 from . import icons
+from .map_widget import create_map_widget
 
 
 class DiscoveryBrowserWindow(Adw.Window):
     COMPACT_BREAKPOINT = 700
     SIDEBAR_MIN_WIDTH = 280
     SIDEBAR_MAX_WIDTH = 380
-    FILTER_OPTIONS = ("Plaques", "Listed Buildings", "Cultural Venues", "Blossom Walk", "Everything")
+    FILTER_OPTIONS = (
+        "Highlights",
+        "Plaques",
+        "Listed Buildings",
+        "Cultural Venues",
+        "Blossom Walk",
+        "Everything",
+    )
 
     def __init__(
         self,
@@ -54,7 +62,7 @@ class DiscoveryBrowserWindow(Adw.Window):
     def _build_ui(self) -> None:
         toolbar = Adw.ToolbarView.new()
         header = Adw.HeaderBar.new()
-        header.set_show_end_title_buttons(False)
+        self.header = header
         header.set_title_widget(Adw.WindowTitle.new("Local Stories", "People, places and culture around Lewisham"))
         toolbar.add_top_bar(header)
         self.set_content(toolbar)
@@ -64,11 +72,6 @@ class DiscoveryBrowserWindow(Adw.Window):
         self.sidebar_button.set_tooltip_text("Hide story list")
         self.sidebar_button.connect("toggled", self._toggle_sidebar)
         header.pack_start(self.sidebar_button)
-
-        self.close_button = Gtk.Button.new_from_icon_name(icons.CLOSE)
-        self.close_button.set_tooltip_text("Close Local Stories")
-        self.close_button.connect("clicked", self._close_window)
-        header.pack_end(self.close_button)
 
         self.toast_overlay = Adw.ToastOverlay.new()
         toolbar.set_content(self.toast_overlay)
@@ -158,6 +161,14 @@ class DiscoveryBrowserWindow(Adw.Window):
         self.detail_box.set_margin_end(24)
         clamp.set_child(self.detail_box)
 
+        self.map_preview_frame = Gtk.Frame.new(None)
+        self.map_preview_frame.add_css_class("card")
+        self.map_preview_frame.set_overflow(Gtk.Overflow.HIDDEN)
+        self.map_preview = create_map_widget([], self._all_discoveries)
+        self.map_preview.set_size_request(-1, 230)
+        self.map_preview_frame.set_child(self.map_preview)
+        self.detail_box.append(self.map_preview_frame)
+
         self.detail_kicker = Gtk.Label.new("")
         self.detail_kicker.set_xalign(0)
         self.detail_kicker.add_css_class("caption-heading")
@@ -193,35 +204,30 @@ class DiscoveryBrowserWindow(Adw.Window):
         self.show_on_map_button.set_visible(self._on_show_on_map is not None)
         self.detail_actions.append(self.show_on_map_button)
 
-        self.source_button = self._action_button(icons.EXTERNAL_LINK, "Open Source")
-        self.source_button.remove_css_class("pill")
-        self.source_button.add_css_class("flat")
+        self.source_button = self._action_button(icons.EXTERNAL_LINK, "Source")
         self.source_button.connect("clicked", self._open_source)
         self.detail_actions.append(self.source_button)
 
-        self.image_button = self._action_button(icons.EXTERNAL_LINK, "Open Image")
-        self.image_button.remove_css_class("pill")
-        self.image_button.add_css_class("flat")
+        self.image_button = self._action_button(icons.EXTERNAL_LINK, "Image")
         self.image_button.connect("clicked", self._open_image)
         self.detail_actions.append(self.image_button)
 
         self.seen_button = Gtk.Button.new_with_label("Mark as Discovered")
-        self.seen_button.set_halign(Gtk.Align.START)
-        self.seen_button.add_css_class("flat")
+        self.seen_button.add_css_class("pill")
         self.seen_button.connect("clicked", self._toggle_seen)
-        self.detail_box.append(self.seen_button)
+        self.detail_actions.append(self.seen_button)
 
-        facts_title = Gtk.Label.new("About This Story")
-        facts_title.set_xalign(0)
-        facts_title.set_margin_top(8)
-        facts_title.add_css_class("heading")
-        self.detail_box.append(facts_title)
-        facts_card = Gtk.Box.new(Gtk.Orientation.VERTICAL, 12)
-        facts_card.add_css_class("story-facts")
-        self.detail_box.append(facts_card)
-        self.area_value = self._append_fact(facts_card, "Area")
-        self.kind_value = self._append_fact(facts_card, "Kind")
-        self.source_value = self._append_fact(facts_card, "Data Source")
+        self.facts_title = Gtk.Label.new("Details")
+        self.facts_title.set_xalign(0)
+        self.facts_title.set_margin_top(8)
+        self.facts_title.add_css_class("heading")
+        self.detail_box.append(self.facts_title)
+        self.facts_card = Gtk.ListBox.new()
+        self.facts_card.add_css_class("boxed-list")
+        self.detail_box.append(self.facts_card)
+        self.area_value = self._append_fact(self.facts_card, "Area")
+        self.kind_value = self._append_fact(self.facts_card, "Kind")
+        self.source_value = self._append_fact(self.facts_card, "Data Source")
 
     def _action_button(self, icon_name: str, label: str) -> Gtk.Button:
         button = Gtk.Button.new()
@@ -232,38 +238,39 @@ class DiscoveryBrowserWindow(Adw.Window):
         button.set_child(content)
         return button
 
-    def _append_fact(self, container: Gtk.Box, title: str) -> Gtk.Label:
-        fact = Gtk.Box.new(Gtk.Orientation.VERTICAL, 2)
-        key = Gtk.Label.new(title)
-        key.set_xalign(0)
-        key.add_css_class("caption-heading")
-        fact.append(key)
-        value = Gtk.Label.new("")
-        value.set_xalign(0)
-        value.set_wrap(True)
-        value.add_css_class("dim-label")
-        fact.append(value)
-        container.append(fact)
-        return value
+    def _append_fact(self, container: Gtk.ListBox, title: str) -> Adw.ActionRow:
+        row = Adw.ActionRow.new()
+        row.set_title(title)
+        row.set_subtitle("")
+        row.set_subtitle_lines(2)
+        row.set_activatable(False)
+        row.set_selectable(False)
+        container.append(row)
+        return row
 
     def _apply_filter(self, *_args) -> None:
         query = self.search_entry.get_text().strip().casefold()
         selected_filter = self.filter_dropdown.get_selected()
+        candidates = (
+            featured_discoveries(self._all_discoveries, limit=64)
+            if selected_filter == 0 and not query
+            else self._all_discoveries
+        )
         self._visible_discoveries = [
             discovery
-            for discovery in self._all_discoveries
+            for discovery in candidates
             if self._matches_filter(discovery, selected_filter) and self._matches_query(discovery, query)
         ]
         self._populate_rows()
 
     def _matches_filter(self, discovery: Discovery, selected_filter: int) -> bool:
-        if selected_filter == 0:
-            return discovery.kind is DiscoveryKind.PLAQUE
         if selected_filter == 1:
-            return discovery.kind is DiscoveryKind.LISTED_BUILDING
+            return discovery.kind is DiscoveryKind.PLAQUE
         if selected_filter == 2:
-            return discovery.kind is DiscoveryKind.CULTURAL_VENUE
+            return discovery.kind is DiscoveryKind.LISTED_BUILDING
         if selected_filter == 3:
+            return discovery.kind is DiscoveryKind.CULTURAL_VENUE
+        if selected_filter == 4:
             return discovery.kind is DiscoveryKind.BLOSSOM
         return True
 
@@ -303,6 +310,10 @@ class DiscoveryBrowserWindow(Adw.Window):
             row.set_subtitle(subtitle)
             row.set_subtitle_lines(1)
             row.set_activatable(True)
+            kind_dot = Gtk.Label.new("●")
+            kind_dot.add_css_class("story-kind")
+            kind_dot.add_css_class(self._kind_css_class(discovery))
+            row.add_prefix(kind_dot)
             arrow = Gtk.Image.new_from_icon_name(icons.NEXT)
             arrow.add_css_class("dim-label")
             row.add_suffix(arrow)
@@ -329,13 +340,20 @@ class DiscoveryBrowserWindow(Adw.Window):
 
     def _show_discovery(self, discovery: Discovery) -> None:
         self._current_discovery = discovery
+        self.map_preview_frame.set_visible(True)
+        self.facts_title.set_visible(True)
+        self.facts_card.set_visible(True)
+        if hasattr(self.map_preview, "set_discoveries"):
+            self.map_preview.set_discoveries([discovery], [discovery])
+        if hasattr(self.map_preview, "focus_discovery"):
+            self.map_preview.focus_discovery(discovery)
         self.detail_kicker.set_text(source_label(discovery))
         self.detail_title.set_text(display_title(discovery))
         self.detail_subtitle.set_text(discovery.address or discovery.borough or "Location supplied by the source")
         self.detail_description.set_text(
             discovery.description or "There is no fuller description in the source yet."
         )
-        self.area_value.set_text(discovery.borough or "Near Lewisham")
+        self.area_value.set_subtitle(discovery.borough or "Near Lewisham")
         if discovery.kind is DiscoveryKind.BLOSSOM:
             kind_label = "Blossom walk"
         elif discovery.kind is DiscoveryKind.LISTED_BUILDING:
@@ -345,8 +363,8 @@ class DiscoveryBrowserWindow(Adw.Window):
             kind_label = discovery.attributes.get("category", "Cultural venue")
         else:
             kind_label = "Plaque"
-        self.kind_value.set_text(kind_label)
-        self.source_value.set_text(discovery.source_name or "Local open data")
+        self.kind_value.set_subtitle(kind_label)
+        self.source_value.set_subtitle(discovery.source_name or "Local open data")
 
         self._source_uri = discovery.source_url
         if not self._source_uri and discovery.source_name == "Open Plaques" and discovery.external_id:
@@ -366,8 +384,20 @@ class DiscoveryBrowserWindow(Adw.Window):
         self.detail_title.set_text("Try another search")
         self.detail_subtitle.set_text("")
         self.detail_description.set_text("Search by a person, place or neighbourhood, or change the story type.")
+        self.map_preview_frame.set_visible(False)
+        self.facts_title.set_visible(False)
+        self.facts_card.set_visible(False)
         self.detail_actions.set_visible(False)
         self.seen_button.set_visible(False)
+
+    def _kind_css_class(self, discovery: Discovery) -> str:
+        if discovery.kind is DiscoveryKind.LISTED_BUILDING:
+            return "listed"
+        if discovery.kind is DiscoveryKind.CULTURAL_VENUE:
+            return "culture"
+        if discovery.kind is DiscoveryKind.BLOSSOM:
+            return "blossom"
+        return "plaque"
 
     def _update_seen_button(self) -> None:
         self.detail_actions.set_visible(True)
@@ -426,6 +456,3 @@ class DiscoveryBrowserWindow(Adw.Window):
     def _on_collapsed_changed(self, *_args) -> None:
         self.split_view.set_show_sidebar(True)
         self._update_sidebar_button()
-
-    def _close_window(self, _button) -> None:
-        self.close()

@@ -30,6 +30,11 @@ install_data(
   install_dir: get_option('datadir') / 'icons' / 'hicolor' / 'scalable' / 'apps',
 )
 
+install_data(
+  'icons/hicolor/symbolic/apps/com.nedrichards.lewishamwalks-symbolic.svg',
+  install_dir: get_option('datadir') / 'icons' / 'hicolor' / 'symbolic' / 'apps',
+)
+
 service_conf = configuration_data()
 service_conf.set('bindir', get_option('prefix') / get_option('bindir'))
 configure_file(

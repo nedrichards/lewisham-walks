@@ -158,13 +158,15 @@ class MainWindow(Adw.ApplicationWindow):
         self.menu_button.set_menu_model(self._create_primary_menu())
         header.pack_end(self.menu_button)
 
-        export_button = Gtk.Button.new_from_icon_name(icons.EXPORT)
-        export_button.set_tooltip_text("Export GPX")
-        export_button.connect("clicked", self._export_gpx)
-        header.pack_end(export_button)
+        self.export_button = Gtk.Button.new_from_icon_name(icons.EXPORT)
+        self.export_button.set_tooltip_text("Save Walk as GPX")
+        self.export_button.set_sensitive(False)
+        self.export_button.connect("clicked", self._export_gpx)
+        header.pack_end(self.export_button)
+        self.compact_breakpoint.add_setter(self.export_button, "visible", False)
 
         data_button = Gtk.Button.new_from_icon_name(icons.STORIES)
-        data_button.set_tooltip_text("Browse local stories")
+        data_button.set_tooltip_text("Explore local stories")
         data_button.connect("clicked", self._show_discovery_browser)
         header.pack_end(data_button)
 
@@ -186,6 +188,8 @@ class MainWindow(Adw.ApplicationWindow):
         self.controls_content.set_margin_end(16)
         self.controls_content.add_css_class("view")
         self.controls_scroller.set_child(self.controls_content)
+        self.compact_breakpoint.add_setter(self.controls_content, "margin-start", 12)
+        self.compact_breakpoint.add_setter(self.controls_content, "margin-end", 12)
 
         self.controls_stack = Adw.ViewStack.new()
         self.controls_stack.set_hexpand(True)
@@ -254,7 +258,7 @@ class MainWindow(Adw.ApplicationWindow):
         self.planner_section.append(route_group)
 
         self.end_postcode_entry = Adw.EntryRow.new()
-        self.end_postcode_entry.set_title("End Point")
+        self.end_postcode_entry.set_title("End point")
         self.end_postcode_entry.set_text("")
         self.end_postcode_entry.connect("notify::text", self._on_end_location_text_changed)
         self.end_postcode_entry.set_tooltip_text("Optional. Leave blank to return to the start.")
@@ -338,15 +342,29 @@ class MainWindow(Adw.ApplicationWindow):
         self.duration_value = self._append_metric("Time")
         self.stops_value = self._append_metric("Discoveries")
 
+        save_gpx_content = Adw.ButtonContent.new()
+        save_gpx_content.set_icon_name(icons.EXPORT)
+        save_gpx_content.set_label("Save GPX")
+        self.save_gpx_button = Gtk.Button.new()
+        self.save_gpx_button.set_child(save_gpx_content)
+        self.save_gpx_button.set_halign(Gtk.Align.START)
+        self.save_gpx_button.add_css_class("pill")
+        self.save_gpx_button.set_visible(False)
+        self.save_gpx_button.set_sensitive(False)
+        self.save_gpx_button.set_tooltip_text("Save this walk for a GPS or mapping app")
+        self.save_gpx_button.connect("clicked", self._export_gpx)
+        self.results_summary_card.append(self.save_gpx_button)
+
         self.results_actions = Gtk.Box.new(Gtk.Orientation.HORIZONTAL, 8)
         self.results_actions.set_halign(Gtk.Align.START)
         self.results_actions.set_visible(False)
-        self.try_another_button = Gtk.Button.new_with_label("Try Another")
+        self.try_another_button = Gtk.Button.new_with_label("Make Another")
         self.try_another_button.add_css_class("pill")
         self.try_another_button.connect("clicked", self._generate_walk)
         self.results_actions.append(self.try_another_button)
         self.directions_button = Gtk.Button.new_with_label("View Directions")
         self.directions_button.add_css_class("pill")
+        self.directions_button.add_css_class("suggested-action")
         self.directions_button.connect("clicked", self._show_directions_section)
         self.directions_button.set_visible(False)
         self.results_actions.append(self.directions_button)
@@ -440,12 +458,12 @@ class MainWindow(Adw.ApplicationWindow):
         self.map_pane.append(self.map_widget)
         planner_page = self.controls_stack.add_titled(self.planner_section, "planner", "Plan")
         planner_page.set_icon_name(icons.PLAN)
-        results_page = self.controls_stack.add_titled(self.results_section, "results", "Results")
-        results_page.set_icon_name(icons.RESULTS)
+        self.results_page = self.controls_stack.add_titled(self.results_section, "results", "Walk")
+        self.results_page.set_icon_name(icons.RESULTS)
         self.directions_page = self.controls_stack.add_titled(
             self.directions_section,
             "directions",
-            "Directions",
+            "Steps",
         )
         self.directions_page.set_icon_name(icons.NEXT)
         self.directions_page.set_visible(False)
@@ -569,15 +587,17 @@ class MainWindow(Adw.ApplicationWindow):
             self.result_list.remove(child)
         self._hide_detail_panel()
         self.results_actions.set_visible(False)
+        self.save_gpx_button.set_visible(False)
         self.warning_box.set_visible(False)
         self.metrics_box.set_visible(False)
         self._clear_directions()
-        self.summary_title.set_text("Explore nearby")
-        self.summary.set_text("A Lewisham-first selection to get you started. Make a walk when you are ready.")
-        self.results_list_title.set_text("Local stories")
-        self.results_list_description.set_text("Select one to read its story and source.")
-        for discovery in self.discoveries[:6]:
-            self._append_story_row(discovery)
+        self.summary_title.set_text("")
+        self.summary.set_text("")
+        self.results_list_title.set_text("")
+        self.results_list_description.set_text("")
+        self.results_page.set_visible(False)
+        self.controls_switcher.set_visible(False)
+        self._set_export_enabled(False)
 
     def _show_preferences(self, _button) -> None:
         if self._preferences_window is None:
@@ -1049,6 +1069,10 @@ class MainWindow(Adw.ApplicationWindow):
             self.map_widget.set_discovery_selection_enabled(enabled)
 
     def _render_plan(self, plan: RoutePlan) -> None:
+        self.results_page.set_visible(True)
+        self.controls_switcher.set_visible(True)
+        self._set_export_enabled(True)
+        self.save_gpx_button.set_visible(True)
         while child := self.result_list.get_first_child():
             self.result_list.remove(child)
         self._hide_detail_panel()
@@ -1115,7 +1139,8 @@ class MainWindow(Adw.ApplicationWindow):
         for leg_index, steps in sorted(steps_by_leg.items()):
             group = Adw.PreferencesGroup.new()
             destination = plan.visits[leg_index] if leg_index < len(plan.visits) else None
-            group.set_title(f"To {self._visit_title(destination, plan)}" if destination is not None else "Continue")
+            title = f"To {self._visit_title(destination, plan)}" if destination is not None else "Continue"
+            group.set_title(GLib.markup_escape_text(title))
             leg_distance = sum(step.distance_m for step in steps)
             leg_duration = sum(step.duration_s for step in steps)
             group.set_description(f"{self._format_distance(leg_distance)} · {self._format_duration(leg_duration)}")
@@ -1241,20 +1266,6 @@ class MainWindow(Adw.ApplicationWindow):
         self.settings.set_strv("seen-story-ids", sorted(seen))
         self.toast_overlay.add_toast(Adw.Toast.new(message))
 
-    def _append_story_row(self, discovery: Discovery) -> None:
-        row = Adw.ActionRow.new()
-        row.discovery = discovery
-        row.set_use_markup(False)
-        row.set_title(display_title(discovery))
-        row.set_subtitle(source_label(discovery))
-        row.set_subtitle_lines(1)
-        row.set_title_lines(2)
-        row.set_activatable(True)
-        arrow = Gtk.Image.new_from_icon_name(icons.NEXT)
-        arrow.add_css_class("dim-label")
-        row.add_suffix(arrow)
-        self.result_list.append(row)
-
     def _append_visit_row(self, index: int, visit: RouteVisit, plan: RoutePlan) -> None:
         row = Adw.ActionRow.new()
         row.visit = visit
@@ -1370,6 +1381,15 @@ class MainWindow(Adw.ApplicationWindow):
         chooser.set_initial_name("lewisham-discovery-walk.gpx")
         chooser.save(self, None, self._finish_export_gpx)
 
+    def _set_export_enabled(self, enabled: bool) -> None:
+        self.export_button.set_sensitive(enabled)
+        self.save_gpx_button.set_sensitive(enabled)
+        application = self.get_application()
+        if application is not None:
+            action = application.lookup_action("export")
+            if action is not None:
+                action.set_enabled(enabled)
+
     def _finish_export_gpx(self, dialog, result) -> None:
         if self.current_plan is None:
             return
@@ -1392,6 +1412,8 @@ class MainWindow(Adw.ApplicationWindow):
             self._show_error(f"Could not export GPX: {error}")
 
     def _show_error(self, message: str) -> None:
+        self.results_page.set_visible(True)
+        self.controls_switcher.set_visible(True)
         self.summary.set_text(message)
         self.toast_overlay.add_toast(Adw.Toast.new(message))
         self._show_results_section()
