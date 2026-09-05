@@ -1,8 +1,11 @@
 import unittest
 from unittest import mock
 
-from lewisham_walks.models import Coordinate, RouteRequest
-from lewisham_walks.providers.routing import OpenStreetMapRoutingProvider
+import requests
+
+from lewisham_walks.models import AmenityStop, Coordinate, RouteRequest, StopPreference
+from lewisham_walks.planner import RoutePlanner
+from lewisham_walks.providers.routing import LocalFallbackRoutingProvider, OpenStreetMapRoutingProvider, RoutingError
 
 
 class FakeResponse:
@@ -44,6 +47,42 @@ class FakeSession:
 
 
 class OpenStreetMapRoutingTests(unittest.TestCase):
+    def test_connection_failure_uses_local_itinerary_without_repeating_amenities(self):
+        session = mock.Mock()
+        session.get.side_effect = requests.ConnectionError("offline")
+        routing = LocalFallbackRoutingProvider(OpenStreetMapRoutingProvider(session))
+        start = Coordinate(51.46, -0.01)
+        cafe = AmenityStop("cafe", "Cafe", "cafe", Coordinate(51.461, -0.01))
+        amenities = mock.Mock()
+        amenities.search.return_value = [cafe]
+        with mock.patch("lewisham_walks.providers.routing.time.sleep"):
+            plan = RoutePlanner([], routing, amenities).plan(
+                RouteRequest(start, 60, stop_preference=StopPreference.CAFE_END)
+            )
+        self.assertTrue(routing.used_fallback)
+        self.assertEqual([start, cafe.coordinate], plan.geometry)
+        self.assertEqual([cafe], plan.amenities)
+        amenities.search.assert_called_once()
+        session.get.assert_called_once()
+
+    def test_malformed_success_responses_raise_routing_error(self):
+        payloads = [None, [], {"code": "Ok", "routes": [{}]}]
+        for coordinates in ([], [[0, float("nan")], [0, 51]], [[0, 91], [0, 51]]):
+            payload = FakeResponse().json()
+            payload["routes"][0]["geometry"]["coordinates"] = coordinates
+            payloads.append(payload)
+        invalid_step = FakeResponse().json()
+        invalid_step["routes"][0]["legs"][0]["steps"][0]["duration"] = float("nan")
+        payloads.append(invalid_step)
+        for payload in payloads:
+            with self.subTest(payload=payload), mock.patch("lewisham_walks.providers.routing.time.sleep"):
+                session = mock.Mock()
+                session.get.return_value.json.return_value = payload
+                with self.assertRaises(RoutingError):
+                    OpenStreetMapRoutingProvider(session).route(
+                        [Coordinate(51, 0), Coordinate(52, 0)], RouteRequest(Coordinate(51, 0), 60)
+                    )
+
     def test_returns_walking_geometry_and_directions(self):
         session = FakeSession()
         provider = OpenStreetMapRoutingProvider(session)

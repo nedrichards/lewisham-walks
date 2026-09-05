@@ -68,6 +68,8 @@ def featured_discoveries(
     limit: int = 24,
 ) -> list[Discovery]:
     """Return a Lewisham-first preview with a little deliberate border context."""
+    if limit <= 0:
+        return []
     ranked = sorted(
         discoveries,
         key=lambda discovery: (

@@ -79,7 +79,7 @@ class ShumateDiscoveryMapWidget(Gtk.Box):
         self._dark = self._style_manager.get_dark()
         self._pending_dark = self._dark
         self._style_animation = None
-        self._style_manager.connect("notify::dark", self._on_dark_changed)
+        self._style_handler_id = 0
 
         self._map_view = Shumate.SimpleMap.new()
         self._map_view.set_hexpand(True)
@@ -122,6 +122,25 @@ class ShumateDiscoveryMapWidget(Gtk.Box):
         # deliberately include useful border context, but fitting all of them
         # would make Greenwich and Southwark dominate the initial viewport.
         self._centre_on([], 13.0)
+
+    def do_root(self) -> None:
+        Gtk.Box.do_root(self)
+        self._style_handler_id = self._style_manager.connect("notify::dark", self._on_dark_changed)
+        self._on_dark_changed(self._style_manager, None)
+
+    def do_unroot(self) -> None:
+        # The global style manager must not retain maps from closed windows.
+        if self._style_handler_id:
+            self._style_manager.disconnect(self._style_handler_id)
+            self._style_handler_id = 0
+        if self._discovery_refresh_source_id:
+            GLib.source_remove(self._discovery_refresh_source_id)
+            self._discovery_refresh_source_id = 0
+        if self._style_animation is not None:
+            self._style_animation.pause()
+            self._style_animation = None
+            self._map_view.set_opacity(1.0)
+        Gtk.Box.do_unroot(self)
 
     def set_plan(self, plan: RoutePlan | None) -> None:
         self._plan = plan
@@ -447,7 +466,7 @@ class DiscoveryMapWidget(Gtk.DrawingArea):
         self._discovery_selection_enabled = True
         self._style_manager = Adw.StyleManager.get_default()
         self._dark = self._style_manager.get_dark()
-        self._style_manager.connect("notify::dark", self._on_dark_changed)
+        self._style_handler_id = 0
         self._last_width = 560
         self._last_height = 560
         self._click_gesture = Gtk.GestureClick.new()
@@ -455,6 +474,17 @@ class DiscoveryMapWidget(Gtk.DrawingArea):
         self._click_gesture.connect("released", self._on_map_clicked)
         self.add_controller(self._click_gesture)
         self.set_draw_func(self._draw)
+
+    def do_root(self) -> None:
+        Gtk.DrawingArea.do_root(self)
+        self._style_handler_id = self._style_manager.connect("notify::dark", self._on_dark_changed)
+        self._on_dark_changed(self._style_manager, None)
+
+    def do_unroot(self) -> None:
+        if self._style_handler_id:
+            self._style_manager.disconnect(self._style_handler_id)
+            self._style_handler_id = 0
+        Gtk.DrawingArea.do_unroot(self)
 
     def _on_dark_changed(self, style_manager, _property) -> None:
         self._dark = style_manager.get_dark()

@@ -100,6 +100,44 @@ class MainWindowResponsiveTests(unittest.TestCase):
         minimum_width, minimum_height = widget.get_size_request()
         return minimum_width, minimum_height
 
+    def test_offline_generation_keeps_a_visible_approximation_warning(self) -> None:
+        import requests
+
+        self.window._picked_start = Coordinate(51.462, -0.01)
+        with mock.patch("lewisham_walks.ui.main_window.threading.Thread") as thread:
+            self.window._generate_walk(None)
+        generation_id, inputs = thread.call_args.kwargs["args"]
+        with (
+            mock.patch("lewisham_walks.providers.routing.requests.Session") as session,
+            mock.patch("lewisham_walks.providers.routing.time.sleep"),
+        ):
+            session.return_value.get.side_effect = requests.ConnectionError("offline")
+            self.window._generate_walk_worker(generation_id, inputs)
+            self._flush()
+        self.assertIsNotNone(self.window.current_plan)
+        self.assertFalse(self.window._generating)
+        self.assertTrue(self.window.warning_box.get_visible())
+        self.assertTrue(any("approximate" in warning for warning in self.window.current_plan.warnings))
+
+    def test_closed_map_disconnects_global_style_notifications(self) -> None:
+        from lewisham_walks.ui.map_widget import DiscoveryMapWidget, ShumateDiscoveryMapWidget
+
+        for widget_type in (DiscoveryMapWidget, ShumateDiscoveryMapWidget):
+            with self.subTest(widget=widget_type.__name__):
+                widget = widget_type([])
+                parent = Gtk.Window()
+                parent.set_child(widget)
+                parent.present()
+                self._flush()
+                handler = widget._style_handler_id
+                self.assertTrue(widget._style_manager.handler_is_connected(handler))
+                parent.set_child(None)
+                self.assertEqual(0, widget._style_handler_id)
+                self.assertFalse(widget._style_manager.handler_is_connected(handler))
+                if hasattr(widget, "_discovery_refresh_source_id"):
+                    self.assertEqual(0, widget._discovery_refresh_source_id)
+                parent.destroy()
+
     def test_main_window_switches_between_wide_and_compact_layouts(self) -> None:
         self.window.present()
         self.window._apply_responsive_layout(1440, 720)

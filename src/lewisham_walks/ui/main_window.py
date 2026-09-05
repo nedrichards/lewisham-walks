@@ -33,11 +33,11 @@ from ..models import (
     RouteVisit,
     StopPreference,
 )
-from ..planner import MAX_BLOSSOM_ROUTE_POINTS, RoutePlanner, StraightLineRoutingProvider
+from ..planner import MAX_BLOSSOM_ROUTE_POINTS, RoutePlanner
 from ..providers.amenities import OverpassAmenityProvider
 from ..providers.geocoding import GeocodingError, PostcodesIoGeocoder, normalise_postcode
 from ..providers.location import LocationPortalProvider
-from ..providers.routing import OpenStreetMapRoutingProvider, RoutingError
+from ..providers.routing import LocalFallbackRoutingProvider, RoutingError
 from ..store import (
     load_seed_blossom_discoveries,
     load_seed_cultural_venues,
@@ -881,20 +881,14 @@ class MainWindow(Adw.ApplicationWindow):
                 seen_story_ids=inputs["seen_story_ids"],
                 variation_seed=inputs["variation_seed"],
             )
-            try:
-                planner = RoutePlanner(
-                    inputs["discoveries"],
-                    routing_provider=OpenStreetMapRoutingProvider(),
-                    amenity_provider=OverpassAmenityProvider(),
-                )
-                plan = planner.plan(request)
-            except RoutingError:
-                planner = RoutePlanner(
-                    inputs["discoveries"],
-                    routing_provider=StraightLineRoutingProvider(),
-                    amenity_provider=OverpassAmenityProvider(),
-                )
-                plan = planner.plan(request)
+            routing = LocalFallbackRoutingProvider()
+            planner = RoutePlanner(
+                inputs["discoveries"],
+                routing_provider=routing,
+                amenity_provider=OverpassAmenityProvider(),
+            )
+            plan = planner.plan(request)
+            if routing.used_fallback:
                 plan = replace(
                     plan,
                     warnings=[*plan.warnings, "Live walking directions were unavailable, so this route is an approximate guide."],

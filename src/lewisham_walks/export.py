@@ -39,9 +39,11 @@ def plan_to_gpx(plan: RoutePlan) -> str:
     )
     metadata = ElementTree.SubElement(gpx, tag("metadata"))
     ElementTree.SubElement(metadata, tag("name")).text = plan_title(plan)
-    ElementTree.SubElement(metadata, tag("desc")).text = (
-        f"{plan.distance_m / 1000:.1f} km walking route with {len(plan.discoveries)} local discoveries"
-    )
+    route_description = " ".join([
+        f"{plan.distance_m / 1000:.1f} km route with {len(plan.discoveries)} local discoveries.",
+        *plan.warnings,
+    ])
+    ElementTree.SubElement(metadata, tag("desc")).text = route_description
 
     route_points = [("Start", "start", plan.request.start, "Start of walk")]
     route_points.extend(
@@ -62,6 +64,7 @@ def plan_to_gpx(plan: RoutePlan) -> str:
 
     track = ElementTree.SubElement(gpx, tag("trk"))
     ElementTree.SubElement(track, tag("name")).text = plan_title(plan)
+    ElementTree.SubElement(track, tag("desc")).text = route_description
     segment = ElementTree.SubElement(track, tag("trkseg"))
     for coordinate in plan.geometry:
         ElementTree.SubElement(

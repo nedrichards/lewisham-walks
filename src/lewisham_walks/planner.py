@@ -75,6 +75,8 @@ class RoutePlanner:
     def plan(self, request: RouteRequest) -> RoutePlan:
         request = self._normalise_request(request)
         warnings: list[str] = []
+        if isinstance(self._routing_provider, StraightLineRoutingProvider):
+            warnings.append("This route is an approximate guide: straight lines between stops do not follow roads.")
         selected = self._select_discoveries(request)
         amenities = self._select_amenities(request, selected, warnings)
         waypoints, visits = self._build_itinerary(request, selected, amenities)
@@ -118,10 +120,21 @@ class RoutePlanner:
         current = request.start
         unseen = [discovery for discovery in self._discoveries if discovery.id not in request.seen_story_ids]
         candidates = unseen or list(self._discoveries)
+        # A route through any story is at least its direct start/story/end trip.
+        # Reject distant starts in one pass instead of repeatedly ranking the corpus.
+        speed_m_s = request.walking_speed_kmh * 1000 / 3600
+        if not any(
+            (haversine_m(request.start, item.coordinate)
+             + haversine_m(item.coordinate, request.end or request.start)) / speed_m_s
+            + self._dwell_seconds([item], request) <= budget_seconds
+            for item in candidates
+        ):
+            return []
+        topics = {item.id: self._topics_for(item) for item in candidates}
         seen_topics: set[str] = set()
 
         while candidates and len(selected) < request.max_discoveries:
-            best = min(candidates, key=lambda discovery: self._candidate_score(discovery, current, seen_topics, request.variation_seed))
+            best = min(candidates, key=lambda discovery: self._candidate_score(discovery, current, seen_topics, request.variation_seed, topics[discovery.id]))
             candidate_selection = [*selected, best]
             trial_points = [request.start, *[discovery.coordinate for discovery in candidate_selection], request.end or request.start]
             distance = sum(haversine_m(a, b) for a, b in pairwise(trial_points))
@@ -132,12 +145,12 @@ class RoutePlanner:
             if walking_seconds + dwell_seconds <= budget_seconds:
                 selected.append(best)
                 current = best.coordinate
-                seen_topics.update(self._topics_for(best))
+                seen_topics.update(topics[best.id])
             candidates.remove(best)
             candidates = [candidate for candidate in candidates if haversine_m(best.coordinate, candidate.coordinate) >= 25]
         return selected
 
-    def _candidate_score(self, discovery: Discovery, current: Coordinate, seen_topics: set[str], variation_seed: int) -> float:
+    def _candidate_score(self, discovery: Discovery, current: Coordinate, seen_topics: set[str], variation_seed: int, topics: set[str]) -> float:
         """Prefer nearby, trustworthy stories while keeping a walk varied."""
         score = haversine_m(current, discovery.coordinate)
         if discovery.curation_status == "in_scope":
@@ -146,7 +159,7 @@ class RoutePlanner:
             score -= 40
         if discovery.is_accurate:
             score -= 70
-        if self._topics_for(discovery) - seen_topics:
+        if topics - seen_topics:
             score -= 120
         description_length = len(discovery.description.strip())
         if 25 <= description_length <= 500:

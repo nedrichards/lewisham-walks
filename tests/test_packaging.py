@@ -24,6 +24,17 @@ class DevelopmentManifestTests(unittest.TestCase):
         self.assertTrue(app_module["run-tests"])
         self.assertEqual({"type": "dir", "path": "."}, app_module["sources"][0])
 
+    def test_production_uses_public_pinned_source_and_minimal_permissions(self):
+        manifest = json.loads((REPOSITORY_ROOT / f"{APP_ID}.json").read_text())
+        source = manifest["modules"][-1]["sources"][0]
+        self.assertEqual("git", source["type"])
+        self.assertEqual("https://github.com/nedrichards/lewisham-walks.git", source["url"])
+        self.assertRegex(source["commit"], r"^[0-9a-f]{40}$")
+        self.assertEqual(
+            {"--share=network", "--share=ipc", "--socket=fallback-x11", "--socket=wayland", "--device=dri"},
+            set(manifest["finish-args"]),
+        )
+
     def test_sdk_wrapper_uses_development_manifest_dependencies(self):
         wrapper = (REPOSITORY_ROOT / "scripts" / "test_in_gnome_sdk.sh").read_text()
 

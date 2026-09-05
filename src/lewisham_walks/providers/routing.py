@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import threading
 import time
 from typing import ClassVar
@@ -7,6 +8,7 @@ from typing import ClassVar
 import requests
 
 from ..models import Coordinate, RouteRequest, RouteStep
+from ..planner import straight_line_route
 
 
 class RoutingError(RuntimeError):
@@ -33,35 +35,62 @@ class OpenStreetMapRoutingProvider:
             if delay > 0:
                 time.sleep(delay)
             provider_type._last_request_started = time.monotonic()
-        response = self._session.get(
-            f"{self.ENDPOINT}/{coordinates}",
-            params={"overview": "full", "geometries": "geojson", "steps": "true"},
-            headers={"User-Agent": "LewishamWalks/0.1 (com.nedrichards.lewishamwalks)"},
-            timeout=30,
-        )
         try:
+            response = self._session.get(
+                f"{self.ENDPOINT}/{coordinates}",
+                params={"overview": "full", "geometries": "geojson", "steps": "true"},
+                headers={"User-Agent": "LewishamWalks/0.1 (com.nedrichards.lewishamwalks)"},
+                timeout=30,
+            )
             response.raise_for_status()
             payload = response.json()
         except (requests.RequestException, ValueError) as error:
             raise RoutingError(f"Walking directions are unavailable: {error}") from error
-        routes = payload.get("routes") or []
-        if payload.get("code") != "Ok" or not routes:
-            raise RoutingError(str(payload.get("message") or "No walking route was returned."))
+        try:
+            routes = payload.get("routes") or []
+            if payload.get("code") != "Ok" or not routes:
+                raise RoutingError(str(payload.get("message") or "No walking route was returned."))
 
-        route = routes[0]
-        raw_geometry = route.get("geometry", {}).get("coordinates", [])
-        geometry = [Coordinate(lat=float(lat), lon=float(lon)) for lon, lat in raw_geometry]
-        steps = [
-            RouteStep(
-                instruction=_osrm_instruction(step),
-                distance_m=float(step.get("distance", 0)),
-                duration_s=float(step.get("duration", 0)),
-                leg_index=leg_index,
-            )
-            for leg_index, leg in enumerate(route.get("legs", []))
-            for step in leg.get("steps", [])
-        ]
-        return geometry, steps, float(route.get("distance", 0)), float(route.get("duration", 0))
+            route = routes[0]
+            raw_geometry = route.get("geometry", {}).get("coordinates", [])
+            geometry = [Coordinate(lat=float(lat), lon=float(lon)) for lon, lat in raw_geometry]
+            steps = [
+                RouteStep(
+                    instruction=_osrm_instruction(step),
+                    distance_m=float(step.get("distance", 0)),
+                    duration_s=float(step.get("duration", 0)),
+                    leg_index=leg_index,
+                )
+                for leg_index, leg in enumerate(route.get("legs", []))
+                for step in leg.get("steps", [])
+            ]
+            distance = float(route["distance"])
+            duration = float(route["duration"])
+            if len(geometry) < 2 or not all(
+                math.isfinite(point.lat) and math.isfinite(point.lon)
+                and -90 <= point.lat <= 90 and -180 <= point.lon <= 180
+                for point in geometry
+            ) or not all(math.isfinite(value) and value >= 0 for value in (distance, duration, *(step.distance_m for step in steps), *(step.duration_s for step in steps))):
+                raise ValueError("Invalid walking route geometry or totals.")
+            return geometry, steps, distance, duration
+        except (AttributeError, KeyError, TypeError, ValueError) as error:
+            raise RoutingError("The routing service returned an invalid walking route.") from error
+
+
+class LocalFallbackRoutingProvider:
+    """Keep the selected itinerary when the pedestrian service is unavailable."""
+
+    def __init__(self, primary: OpenStreetMapRoutingProvider | None = None) -> None:
+        self.primary = primary or OpenStreetMapRoutingProvider()
+        self.used_fallback = False
+
+    def route(self, waypoints: list[Coordinate], request: RouteRequest) -> tuple[list[Coordinate], list[RouteStep], float, float]:
+        self.used_fallback = False
+        try:
+            return self.primary.route(waypoints, request)
+        except RoutingError:
+            self.used_fallback = True
+            return straight_line_route(waypoints, request)
 
 
 def _osrm_instruction(step: dict) -> str:

@@ -5,6 +5,10 @@ from lewisham_walks.models import Coordinate, Discovery, DiscoveryKind, RouteThe
 
 
 class DiscoveryTests(unittest.TestCase):
+    def test_nonpositive_feature_limit_returns_no_stories(self):
+        for limit in (0, -1):
+            self.assertEqual([], featured_discoveries([self.local, self.place], limit=limit))
+
     def setUp(self):
         self.local = Discovery(
             "local", "A locally curated story", "An artist lived here", Coordinate(51.46, -0.01),

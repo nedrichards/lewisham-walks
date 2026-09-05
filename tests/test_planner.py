@@ -1,4 +1,5 @@
 import unittest
+from unittest import mock
 from xml.etree import ElementTree
 
 from lewisham_walks.export import GPX_NAMESPACE, plan_to_gpx, suggested_gpx_filename
@@ -34,6 +35,29 @@ class RecordingRoutingProvider:
 
 
 class PlannerTests(unittest.TestCase):
+    def test_local_route_and_gpx_preserve_approximation_warning(self):
+        plan = RoutePlanner(self.discoveries).plan(RouteRequest(Coordinate(51.46, -0.01), 60))
+        self.assertTrue(any("straight lines" in warning for warning in plan.warnings))
+        root = ElementTree.fromstring(plan_to_gpx(plan))  # noqa: S314 - generated test data
+        namespace = {"gpx": GPX_NAMESPACE}
+        for path in ("gpx:metadata/gpx:desc", "gpx:trk/gpx:desc"):
+            self.assertIn("straight lines", root.find(path, namespace).text)
+
+    def test_distant_start_does_not_rank_unreachable_stories(self):
+        planner = RoutePlanner(self.discoveries)
+        with mock.patch.object(planner, "_candidate_score", wraps=planner._candidate_score) as score:
+            plan = planner.plan(RouteRequest(Coordinate(55, 0), 15))
+        self.assertEqual([], plan.discoveries)
+        score.assert_not_called()
+        self.assertTrue(plan.warnings)
+
+    def test_topics_are_computed_once_per_story_per_plan(self):
+        planner = RoutePlanner(self.discoveries)
+        with mock.patch.object(planner, "_topics_for", wraps=planner._topics_for) as topics:
+            plan = planner.plan(RouteRequest(Coordinate(51.46, -0.01), 60))
+        self.assertTrue(plan.discoveries)
+        self.assertEqual(len(self.discoveries), topics.call_count)
+
     def setUp(self):
         self.discoveries = [
             Discovery("a", "A", "", Coordinate(51.46, -0.01)),

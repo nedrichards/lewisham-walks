@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 import math
+import os
+import threading
+import time
+from typing import ClassVar
 
 import requests
 
@@ -13,14 +17,18 @@ class AmenityLookupError(RuntimeError):
 
 
 class OverpassAmenityProvider:
+    _request_lock: ClassVar[threading.Lock] = threading.Lock()
+    _last_request_started: ClassVar[float] = 0.0
+
     def __init__(self, session: requests.Session | None = None) -> None:
         self._session = session or requests.Session()
         self._endpoints = [
-            "https://overpass.osm.ch/api/interpreter",
             "https://overpass-api.de/api/interpreter",
             "https://overpass.kumi.systems/api/interpreter",
         ]
-        self._nominatim_endpoint = "https://nominatim.openstreetmap.org/search"
+        self._nominatim_endpoint = os.environ.get(
+            "LEWISHAM_WALKS_NOMINATIM_ENDPOINT", "https://nominatim.openstreetmap.org/search"
+        )
 
     def search(self, centre: Coordinate, kind: str, radius_m: int = 900) -> list[AmenityStop]:
         if kind not in {"cafe", "pub", "bar"}:
@@ -40,13 +48,13 @@ class OverpassAmenityProvider:
         try:
             response = self._post_query(query)
             amenities.extend(self._parse_overpass_elements(response.json().get("elements", []), kind))
-        except AmenityLookupError as error:
-            overpass_error = error
+        except (AmenityLookupError, ValueError, TypeError, AttributeError) as error:
+            overpass_error = AmenityLookupError(str(error))
 
         if not amenities:
             try:
                 amenities.extend(self._search_nominatim(centre, kind, radius))
-            except requests.exceptions.RequestException as error:
+            except (requests.RequestException, ValueError, TypeError, AttributeError) as error:
                 if overpass_error is not None:
                     raise AmenityLookupError(f"{overpass_error}; Nominatim fallback failed: {error}") from error
                 raise AmenityLookupError(f"Nominatim fallback failed: {error}") from error
@@ -60,8 +68,8 @@ class OverpassAmenityProvider:
         amenities: list[AmenityStop] = []
         for element in elements:
             tags = {str(key): str(value) for key, value in element.get("tags", {}).items()}
-            lat = element.get("lat") or element.get("center", {}).get("lat")
-            lon = element.get("lon") or element.get("center", {}).get("lon")
+            lat = element.get("lat", element.get("center", {}).get("lat"))
+            lon = element.get("lon", element.get("center", {}).get("lon"))
             if lat is None or lon is None:
                 continue
             amenities.append(
@@ -83,6 +91,12 @@ class OverpassAmenityProvider:
         amenities: list[AmenityStop] = []
         seen: set[str] = set()
         for term in terms:
+            provider_type = type(self)
+            with provider_type._request_lock:
+                delay = 1.0 - (time.monotonic() - provider_type._last_request_started)
+                if delay > 0:
+                    time.sleep(delay)
+                provider_type._last_request_started = time.monotonic()
             response = self._session.get(
                 self._nominatim_endpoint,
                 params={"q": term, "format": "jsonv2", "limit": 20, "viewbox": viewbox, "bounded": 1},
@@ -98,6 +112,8 @@ class OverpassAmenityProvider:
                     continue
                 seen.add(amenity.id)
                 amenities.append(amenity)
+            if amenities:
+                break
         return amenities
 
     def _amenity_from_nominatim_item(self, item: dict, kind: str) -> AmenityStop | None:
@@ -127,7 +143,10 @@ class OverpassAmenityProvider:
         errors: list[str] = []
         for endpoint in self._endpoints:
             try:
-                response = self._session.post(endpoint, data={"data": query}, timeout=8)
+                response = self._session.post(
+                    endpoint, data={"data": query}, timeout=8,
+                    headers={"User-Agent": "LewishamWalks/0.1 (com.nedrichards.lewishamwalks)"},
+                )
                 if response.status_code in {429, 502, 503, 504}:
                     errors.append(f"{endpoint} returned {response.status_code}")
                     continue

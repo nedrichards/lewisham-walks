@@ -17,7 +17,7 @@ No account, commercial API key or secret is required. If live routing is unavail
 
 ## Status
 
-This repository is an early public development checkpoint. There is not yet a tagged release or Flathub listing. Build the Flatpak locally to try it.
+This repository is an early public development checkpoint. There is not yet a tagged release or Flathub listing. Build the Flatpak locally to try it. See [Flathub readiness](FLATHUB.md) for the validation evidence and remaining release steps.
 
 ## Build and install
 

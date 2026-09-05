@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -115,16 +116,9 @@ def main() -> int:
         try:
             width = target_window.get_width()
             height = target_window.get_height()
-            content = (
-                target_window
-                if page in {"shortcuts", "about"}
-                else target_window.get_content()
-                if hasattr(target_window, "get_content")
-                else target_window.get_child()
-            )
-            if content is None:
-                raise RuntimeError("Window did not expose any content to capture")
-            paintable = Gtk.WidgetPaintable.new(content)
+            # Include the window background and header in review captures.
+            # Snapshotting only its child leaves transparent areas black in viewers.
+            paintable = Gtk.WidgetPaintable.new(target_window)
             snapshot = Gtk.Snapshot.new()
             paintable.snapshot(snapshot, width, height)
             node = snapshot.to_node()
@@ -158,7 +152,7 @@ def main() -> int:
         return GLib.SOURCE_REMOVE
 
     GLib.timeout_add(750, settle_layout)
-    GLib.timeout_add(3000, capture)
+    GLib.timeout_add(max(3000, int(os.environ.get("LEWISHAM_WALKS_CAPTURE_DELAY_MS", "3000"))), capture)
     loop.run()
     if capture_errors:
         raise capture_errors[0]

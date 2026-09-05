@@ -1,4 +1,5 @@
 import unittest
+from unittest import mock
 
 from lewisham_walks.models import Coordinate
 from lewisham_walks.providers.amenities import OverpassAmenityProvider
@@ -24,8 +25,8 @@ class FakeSession:
         self.requests = []
         self.get_requests = []
 
-    def post(self, endpoint, data, timeout):
-        self.requests.append((endpoint, data["data"], timeout))
+    def post(self, endpoint, data, timeout, headers):
+        self.requests.append((endpoint, data["data"], timeout, headers))
         return FakeResponse(self.payload)
 
     def get(self, endpoint, params, headers, timeout):
@@ -34,6 +35,33 @@ class FakeSession:
 
 
 class OverpassAmenityProviderTests(unittest.TestCase):
+    def setUp(self):
+        patcher = mock.patch("lewisham_walks.providers.amenities.time.sleep")
+        self.sleep = patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_search_uses_global_overpass_with_application_identity(self):
+        session = FakeSession({"elements": []})
+        OverpassAmenityProvider(session).search(Coordinate(51.45, -0.02), "cafe")
+        self.assertEqual("https://overpass-api.de/api/interpreter", session.requests[0][0])
+        self.assertIn("LewishamWalks", session.requests[0][3]["User-Agent"])
+
+    def test_zero_longitude_is_a_valid_node_coordinate(self):
+        session = FakeSession({"elements": [{"id": 1, "lat": 51.45, "lon": 0, "tags": {}}]})
+        result = OverpassAmenityProvider(session).search(Coordinate(51.45, 0), "cafe")
+        self.assertEqual(Coordinate(51.45, 0), result[0].coordinate)
+        self.assertEqual([], session.get_requests)
+
+    def test_nominatim_requests_are_spaced_between_provider_instances(self):
+        previous = OverpassAmenityProvider._last_request_started
+        self.addCleanup(setattr, OverpassAmenityProvider, "_last_request_started", previous)
+        OverpassAmenityProvider._last_request_started = 0
+        payload = [{"osm_type": "node", "osm_id": 1, "lat": "51.45", "lon": "0", "type": "cafe"}]
+        with mock.patch("lewisham_walks.providers.amenities.time.monotonic", side_effect=[100, 100, 100.25, 101]):
+            for _ in range(2):
+                OverpassAmenityProvider(FakeSession({}, payload)).search(Coordinate(51.45, 0), "cafe")
+        self.sleep.assert_called_once_with(0.75)
+
     def test_query_includes_nodes_ways_and_relations(self):
         session = FakeSession(
             {
@@ -117,7 +145,7 @@ class OverpassAmenityProviderTests(unittest.TestCase):
 
         self.assertEqual(["Nearby Pub"], [amenity.name for amenity in amenities])
         self.assertEqual("nominatim/node/20", amenities[0].id)
-        self.assertEqual(["pub", "bar", "beer"], [request[1]["q"] for request in session.get_requests])
+        self.assertEqual(["pub"], [request[1]["q"] for request in session.get_requests])
         self.assertTrue(all(request[1]["bounded"] == 1 for request in session.get_requests))
 
 
