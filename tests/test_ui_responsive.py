@@ -565,21 +565,27 @@ class MainWindowResponsiveTests(unittest.TestCase):
             )
             self.assertEqual(2, browser_type.return_value.present.call_count)
 
-        with mock.patch("lewisham_walks.ui.main_window.PreferencesWindow") as preferences_type:
+        with mock.patch("lewisham_walks.ui.main_window.PreferencesDialog") as preferences_type:
             self.window._show_preferences(None)
             self.window._show_preferences(None)
-            preferences_type.assert_called_once_with(self.window)
-            self.assertEqual(2, preferences_type.return_value.present.call_count)
+            preferences_type.assert_called_once_with()
+            self.assertEqual(
+                [mock.call(self.window), mock.call(self.window)],
+                preferences_type.return_value.present.call_args_list,
+            )
 
     def test_primary_menu_and_standard_dialogs_use_native_gnome_patterns(self) -> None:
         self.assertEqual(3, self.window.menu_button.get_menu_model().get_n_items())
 
         self.window._show_shortcuts(None)
-        shortcuts_window = self.window._shortcuts_window
-        self.assertIsInstance(shortcuts_window, Gtk.ShortcutsWindow)
-        self.assertIs(shortcuts_window.get_transient_for(), self.window)
+        shortcuts_dialog = self.window._shortcuts_dialog
+        self.assertIsInstance(shortcuts_dialog, Adw.ShortcutsDialog)
         self.window._show_shortcuts(None)
-        self.assertIs(shortcuts_window, self.window._shortcuts_window)
+        self.assertIs(shortcuts_dialog, self.window._shortcuts_dialog)
+
+        self.window._show_preferences(None)
+        preferences_dialog = self.window._preferences_dialog
+        self.assertIsInstance(preferences_dialog, Adw.PreferencesDialog)
 
         self.window._show_about(None)
         about_dialog = self.window._about_dialog
@@ -588,11 +594,23 @@ class MainWindowResponsiveTests(unittest.TestCase):
         self.assertEqual("com.nedrichards.lewishamwalks", about_dialog.get_application_icon())
         self.assertEqual("Nick Richards", about_dialog.get_developer_name())
 
-        shortcuts_window.close()
+        shortcuts_dialog.close()
+        preferences_dialog.close()
         about_dialog.close()
         self._flush()
-        self.assertIsNone(self.window._shortcuts_window)
+        self.assertIsNone(self.window._shortcuts_dialog)
+        self.assertIsNone(self.window._preferences_dialog)
         self.assertIsNone(self.window._about_dialog)
+
+        self.window._show_shortcuts(None)
+        self.window._show_preferences(None)
+        self.window._show_about(None)
+        self.assertIsNot(shortcuts_dialog, self.window._shortcuts_dialog)
+        self.assertIsNot(preferences_dialog, self.window._preferences_dialog)
+        self.assertIsNot(about_dialog, self.window._about_dialog)
+        self.window._shortcuts_dialog.close()
+        self.window._preferences_dialog.close()
+        self.window._about_dialog.close()
 
     def test_closed_story_browser_is_released_for_a_fresh_window(self) -> None:
         self.window._show_discovery_browser(None)

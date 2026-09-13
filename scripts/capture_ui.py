@@ -28,7 +28,7 @@ def main() -> int:
     if len(sys.argv) not in (2, 4, 5):
         raise SystemExit(
             "usage: capture_ui.py OUTPUT.png [WIDTH HEIGHT "
-            "[plan|results|route|directions|map|map-story|stories|story|shortcuts|about]]"
+            "[plan|results|route|directions|map|map-story|stories|story|preferences|shortcuts|about]]"
         )
     output = Path(sys.argv[1]).resolve()
     width, height = (int(sys.argv[2]), int(sys.argv[3])) if len(sys.argv) == 4 else (1440, 820)
@@ -44,12 +44,13 @@ def main() -> int:
         "map-story",
         "stories",
         "story",
+        "preferences",
         "shortcuts",
         "about",
     }:
         raise SystemExit(
             "page must be 'plan', 'results', 'route', 'directions', 'map', 'map-story', "
-            "'stories', 'story', 'shortcuts' or 'about'"
+            "'stories', 'story', 'preferences', 'shortcuts' or 'about'"
         )
     Adw.init()
     settings = Gtk.Settings.get_default()
@@ -84,10 +85,12 @@ def main() -> int:
         window._show_controls_page(
             "directions" if page == "directions" else "results" if page in {"results", "route"} else "planner"
         )
-        if page == "shortcuts":
+        if page == "preferences":
+            window.present()
+            window._show_preferences(None)
+        elif page == "shortcuts":
             window.present()
             window._show_shortcuts(None)
-            target_window = window._shortcuts_window
         elif page == "about":
             window.present()
             window._show_about(None)
@@ -142,6 +145,10 @@ def main() -> int:
         return GLib.SOURCE_REMOVE
 
     def shutdown() -> bool:
+        if page == "preferences" and window._preferences_dialog is not None:
+            window._preferences_dialog.close()
+        if page == "shortcuts" and window._shortcuts_dialog is not None:
+            window._shortcuts_dialog.close()
         if page == "about" and window._about_dialog is not None:
             window._about_dialog.close()
         if target_window is not window:

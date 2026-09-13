@@ -10,9 +10,9 @@ from gi.repository import Adw, Gio
 from .. import APP_ID
 
 
-class PreferencesWindow(Adw.PreferencesWindow):
-    def __init__(self, parent) -> None:
-        super().__init__(transient_for=parent, modal=True, title="Preferences")
+class PreferencesDialog(Adw.PreferencesDialog):
+    def __init__(self) -> None:
+        super().__init__(title="Preferences")
         self.settings = Gio.Settings.new(APP_ID)
 
         page = Adw.PreferencesPage.new()

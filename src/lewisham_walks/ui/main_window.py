@@ -58,7 +58,7 @@ from .layout import (
     SIDEBAR_WIDE_WIDTH_FRACTION,
 )
 from .map_widget import create_map_widget
-from .preferences_window import PreferencesWindow
+from .preferences_window import PreferencesDialog
 
 
 class MainWindow(Adw.ApplicationWindow):
@@ -104,9 +104,9 @@ class MainWindow(Adw.ApplicationWindow):
         self._initial_location_requested = False
         self._sidebar_requested_open = True
         self._syncing_sidebar_button = False
-        self._preferences_window: PreferencesWindow | None = None
+        self._preferences_dialog: PreferencesDialog | None = None
         self._stories_window: DiscoveryBrowserWindow | None = None
-        self._shortcuts_window: Gtk.ShortcutsWindow | None = None
+        self._shortcuts_dialog: Adw.ShortcutsDialog | None = None
         self._about_dialog: Adw.AboutDialog | None = None
         self._build_ui()
 
@@ -682,17 +682,16 @@ class MainWindow(Adw.ApplicationWindow):
         self._set_export_enabled(False)
 
     def _show_preferences(self, _button) -> None:
-        if self._preferences_window is None:
-            self._preferences_window = PreferencesWindow(self)
-            self._preferences_window.connect("close-request", self._clear_preferences_window)
-        self._preferences_window.present()
+        if self._preferences_dialog is None:
+            self._preferences_dialog = PreferencesDialog()
+            self._preferences_dialog.connect("closed", self._clear_preferences_dialog)
+        self._preferences_dialog.present(self)
 
-    def _clear_preferences_window(self, *_args) -> bool:
-        self._preferences_window = None
-        return False
+    def _clear_preferences_dialog(self, *_args) -> None:
+        self._preferences_dialog = None
 
     def _show_shortcuts(self, _action) -> None:
-        if self._shortcuts_window is None:
+        if self._shortcuts_dialog is None:
             resource_path = "/com/nedrichards/lewishamwalks/gtk/shortcuts-window.ui"
             try:
                 Gio.resources_lookup_data(resource_path, Gio.ResourceLookupFlags.NONE)
@@ -700,17 +699,15 @@ class MainWindow(Adw.ApplicationWindow):
                 builder = Gtk.Builder.new_from_file(str(Path(__file__).with_name("shortcuts-window.ui")))
             else:
                 builder = Gtk.Builder.new_from_resource(resource_path)
-            shortcuts_window = builder.get_object("shortcuts_window")
-            if not isinstance(shortcuts_window, Gtk.ShortcutsWindow):
-                raise RuntimeError("Could not load the keyboard shortcuts window")
-            shortcuts_window.set_transient_for(self)
-            shortcuts_window.connect("close-request", self._clear_shortcuts_window)
-            self._shortcuts_window = shortcuts_window
-        self._shortcuts_window.present()
+            shortcuts_dialog = builder.get_object("shortcuts_dialog")
+            if not isinstance(shortcuts_dialog, Adw.ShortcutsDialog):
+                raise RuntimeError("Could not load the keyboard shortcuts dialog")
+            shortcuts_dialog.connect("closed", self._clear_shortcuts_dialog)
+            self._shortcuts_dialog = shortcuts_dialog
+        self._shortcuts_dialog.present(self)
 
-    def _clear_shortcuts_window(self, *_args) -> bool:
-        self._shortcuts_window = None
-        return False
+    def _clear_shortcuts_dialog(self, *_args) -> None:
+        self._shortcuts_dialog = None
 
     def _show_about(self, _action) -> None:
         if self._about_dialog is None:
@@ -1381,8 +1378,18 @@ class MainWindow(Adw.ApplicationWindow):
         content.append(Gtk.Image.new_from_icon_name(icons.EXTERNAL_LINK))
         content.append(Gtk.Label.new(title))
         button.set_child(content)
-        button.connect("clicked", lambda _button, link=uri: Gtk.show_uri(self, link, 0))
+        button.connect("clicked", lambda _button, link=uri: self._launch_uri(link))
         self.detail_rows.append(button)
+
+    def _launch_uri(self, uri: str) -> None:
+        launcher = Gtk.UriLauncher.new(uri)
+        launcher.launch(self, None, self._finish_launch_uri)
+
+    def _finish_launch_uri(self, launcher: Gtk.UriLauncher, result) -> None:
+        try:
+            launcher.launch_finish(result)
+        except GLib.Error as error:
+            self.toast_overlay.add_toast(Adw.Toast.new(f"Could not open the link: {error.message}"))
 
     def _add_seen_button(self, story_id: str) -> None:
         seen = set(self.settings.get_strv("seen-story-ids"))

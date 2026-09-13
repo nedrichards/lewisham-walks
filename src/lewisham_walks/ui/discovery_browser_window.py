@@ -7,7 +7,7 @@ import gi
 gi.require_version("Adw", "1")
 gi.require_version("Gtk", "4.0")
 
-from gi.repository import Adw, Gtk
+from gi.repository import Adw, GLib, Gtk
 
 from ..discovery import display_title, featured_discoveries, source_label
 from ..models import Discovery, DiscoveryKind
@@ -447,11 +447,21 @@ class DiscoveryBrowserWindow(Adw.Window):
 
     def _open_source(self, _button) -> None:
         if self._source_uri:
-            Gtk.show_uri(self, self._source_uri, 0)
+            self._launch_uri(self._source_uri)
 
     def _open_image(self, _button) -> None:
         if self._image_uri:
-            Gtk.show_uri(self, self._image_uri, 0)
+            self._launch_uri(self._image_uri)
+
+    def _launch_uri(self, uri: str) -> None:
+        launcher = Gtk.UriLauncher.new(uri)
+        launcher.launch(self, None, self._finish_launch_uri)
+
+    def _finish_launch_uri(self, launcher: Gtk.UriLauncher, result) -> None:
+        try:
+            launcher.launch_finish(result)
+        except GLib.Error as error:
+            self.toast_overlay.add_toast(Adw.Toast.new(f"Could not open the link: {error.message}"))
 
     def _toggle_sidebar(self, button) -> None:
         if self._syncing_sidebar_button:
