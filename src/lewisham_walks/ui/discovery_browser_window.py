@@ -70,6 +70,7 @@ class DiscoveryBrowserWindow(Adw.Window):
         self.sidebar_button = Gtk.ToggleButton.new()
         self.sidebar_button.set_icon_name(icons.SIDEBAR)
         self.sidebar_button.set_tooltip_text("Hide story list")
+        self.sidebar_button.update_property([Gtk.AccessibleProperty.LABEL], ["Hide story list"])
         self.sidebar_button.connect("toggled", self._toggle_sidebar)
         header.pack_start(self.sidebar_button)
 
@@ -110,6 +111,7 @@ class DiscoveryBrowserWindow(Adw.Window):
 
         self.search_entry = Gtk.SearchEntry.new()
         self.search_entry.set_placeholder_text("Search stories and places")
+        self.search_entry.update_property([Gtk.AccessibleProperty.LABEL], ["Search stories and places"])
         self.search_entry.connect("search-changed", self._apply_filter)
         controls.append(self.search_entry)
 
@@ -120,6 +122,7 @@ class DiscoveryBrowserWindow(Adw.Window):
         filter_box.append(filter_label)
         self.filter_dropdown = Gtk.DropDown.new_from_strings(self.FILTER_OPTIONS)
         self.filter_dropdown.set_hexpand(True)
+        self.filter_dropdown.update_property([Gtk.AccessibleProperty.LABEL], ["Show story type"])
         self.filter_dropdown.connect("notify::selected", self._apply_filter)
         filter_box.append(self.filter_dropdown)
         controls.append(filter_box)
@@ -236,6 +239,7 @@ class DiscoveryBrowserWindow(Adw.Window):
         content.append(Gtk.Image.new_from_icon_name(icon_name))
         content.append(Gtk.Label.new(label))
         button.set_child(content)
+        button.update_property([Gtk.AccessibleProperty.LABEL], [label])
         return button
 
     def _append_fact(self, container: Gtk.ListBox, title: str) -> Adw.ActionRow:
@@ -337,6 +341,11 @@ class DiscoveryBrowserWindow(Adw.Window):
         self._show_discovery(row.discovery)
         if self.split_view.get_collapsed():
             self.split_view.set_show_sidebar(False)
+            self._focus_detail_actions()
+
+    def _focus_detail_actions(self) -> None:
+        target = self.show_on_map_button if self.show_on_map_button.get_visible() else self.seen_button
+        target.grab_focus()
 
     def _show_discovery(self, discovery: Discovery) -> None:
         self._current_discovery = discovery
@@ -392,6 +401,8 @@ class DiscoveryBrowserWindow(Adw.Window):
         self._show_discovery(discovery)
         if self.split_view.get_collapsed():
             self.split_view.set_show_sidebar(False)
+        if self.get_mapped():
+            self._focus_detail_actions()
 
     def _show_empty_details(self) -> None:
         self._current_discovery = None
@@ -476,7 +487,9 @@ class DiscoveryBrowserWindow(Adw.Window):
                 self.sidebar_button.set_active(show_sidebar)
             finally:
                 self._syncing_sidebar_button = False
-        self.sidebar_button.set_tooltip_text("Hide story list" if show_sidebar else "Show story list")
+        label = "Hide story list" if show_sidebar else "Show story list"
+        self.sidebar_button.set_tooltip_text(label)
+        self.sidebar_button.update_property([Gtk.AccessibleProperty.LABEL], [label])
 
     def _on_collapsed_changed(self, *_args) -> None:
         self.split_view.set_show_sidebar(True)

@@ -809,6 +809,34 @@ class PlaqueBrowserResponsiveTests(unittest.TestCase):
         self.assertFalse(self.window.split_view.get_pin_sidebar())
         self.assertTrue(self.window.split_view.get_show_sidebar())
 
+    def test_activating_a_story_at_compact_width_moves_focus_to_details(self) -> None:
+        story = Discovery("story", "Local story", "A place to find", Coordinate(51.469, -0.023))
+        browser = DiscoveryBrowserWindow(self.parent, [story], lambda _story: None)
+        self.addCleanup(browser.destroy)
+        browser.set_default_size(390, 720)
+        browser.present()
+        self._flush()
+
+        browser._on_row_activated(browser.list_box, browser.list_box.get_first_child())
+        self._flush()
+
+        self.assertFalse(browser.split_view.get_show_sidebar())
+        self.assertIs(browser.get_focus(), browser.show_on_map_button)
+
+    def test_opening_a_specific_story_from_the_map_moves_focus_to_details(self) -> None:
+        story = Discovery("story", "Local story", "A place to find", Coordinate(51.469, -0.023))
+        browser = DiscoveryBrowserWindow(self.parent, [story], lambda _story: None)
+        self.addCleanup(browser.destroy)
+        browser.set_default_size(390, 720)
+        browser.present()
+        self._flush()
+
+        browser.show_discovery(story)
+        self._flush()
+
+        self.assertFalse(browser.split_view.get_show_sidebar())
+        self.assertIs(browser.get_focus(), browser.show_on_map_button)
+
     def test_browser_pins_the_list_beside_details_on_desktop(self) -> None:
         self.window.set_default_size(960, 680)
         self.window.present()

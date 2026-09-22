@@ -368,6 +368,7 @@ class ShumateDiscoveryMapWidget(Gtk.Box):
         button = Gtk.Button.new()
         button.set_child(icon)
         button.set_tooltip_text(discovery.title)
+        button.update_property([Gtk.AccessibleProperty.LABEL], [discovery.title])
         button.set_size_request(22, 22)
         button.add_css_class("circular")
         button.add_css_class("map-pin")
@@ -395,6 +396,7 @@ class ShumateDiscoveryMapWidget(Gtk.Box):
         child.add_css_class("circular")
         child.set_size_request(28, 28)
         child.set_tooltip_text(tooltip)
+        child.update_property([Gtk.AccessibleProperty.LABEL], [tooltip])
 
         selectable = False
         if isinstance(marker_item, Discovery):

@@ -147,6 +147,7 @@ class MainWindow(Adw.ApplicationWindow):
         self.sidebar_button = Gtk.ToggleButton.new()
         self.sidebar_button.set_icon_name(icons.SIDEBAR)
         self.sidebar_button.set_tooltip_text("Hide walk planner")
+        self.sidebar_button.update_property([Gtk.AccessibleProperty.LABEL], ["Hide walk planner"])
         self.sidebar_button.connect("toggled", self._toggle_sidebar)
         header.pack_start(self.sidebar_button)
         self._update_sidebar_button()
@@ -154,11 +155,13 @@ class MainWindow(Adw.ApplicationWindow):
         self.menu_button = Gtk.MenuButton.new()
         self.menu_button.set_icon_name(icons.MENU)
         self.menu_button.set_tooltip_text("Main Menu")
+        self.menu_button.update_property([Gtk.AccessibleProperty.LABEL], ["Main Menu"])
         self.menu_button.set_menu_model(self._create_primary_menu())
         header.pack_end(self.menu_button)
 
         self.export_button = Gtk.Button.new_from_icon_name(icons.EXPORT)
         self.export_button.set_tooltip_text("Save Walk as GPX")
+        self.export_button.update_property([Gtk.AccessibleProperty.LABEL], ["Save Walk as GPX"])
         self.export_button.set_sensitive(False)
         self.export_button.connect("clicked", self._export_gpx)
         header.pack_end(self.export_button)
@@ -166,6 +169,7 @@ class MainWindow(Adw.ApplicationWindow):
 
         data_button = Gtk.Button.new_from_icon_name(icons.STORIES)
         data_button.set_tooltip_text("Explore local stories")
+        data_button.update_property([Gtk.AccessibleProperty.LABEL], ["Explore local stories"])
         data_button.connect("clicked", self._show_discovery_browser)
         header.pack_end(data_button)
 
@@ -242,12 +246,14 @@ class MainWindow(Adw.ApplicationWindow):
         self.current_location_button = Gtk.Button.new_from_icon_name(icons.CURRENT_LOCATION)
         self.current_location_button.add_css_class("flat")
         self.current_location_button.set_tooltip_text("Use current location")
+        self.current_location_button.update_property([Gtk.AccessibleProperty.LABEL], ["Use current location"])
         self.current_location_button.connect("clicked", self._use_current_location_for_start)
         self.postcode_entry.add_suffix(self.current_location_button)
 
         self.pick_start_button = Gtk.Button.new_from_icon_name(self.MAP_PICK_ICON)
         self.pick_start_button.add_css_class("flat")
         self.pick_start_button.set_tooltip_text("Pick start on map")
+        self.pick_start_button.update_property([Gtk.AccessibleProperty.LABEL], ["Pick start on map"])
         self.pick_start_button.connect("clicked", self._begin_pick_start)
         self.postcode_entry.add_suffix(self.pick_start_button)
         start_group.add(self.postcode_entry)
@@ -289,6 +295,7 @@ class MainWindow(Adw.ApplicationWindow):
 
         self.pick_end_button = Gtk.Button.new_from_icon_name(self.MAP_PICK_ICON)
         self.pick_end_button.set_tooltip_text("Pick end on map")
+        self.pick_end_button.update_property([Gtk.AccessibleProperty.LABEL], ["Pick end on map"])
         self.pick_end_button.connect("clicked", self._begin_pick_end)
         self.pick_end_button.add_css_class("flat")
         self.end_postcode_entry.add_suffix(self.pick_end_button)
@@ -351,6 +358,7 @@ class MainWindow(Adw.ApplicationWindow):
         self.save_gpx_button.set_visible(False)
         self.save_gpx_button.set_sensitive(False)
         self.save_gpx_button.set_tooltip_text("Save this walk for a GPS or mapping app")
+        self.save_gpx_button.update_property([Gtk.AccessibleProperty.LABEL], ["Save GPX"])
         self.save_gpx_button.connect("clicked", self._export_gpx)
         self.results_summary_card.append(self.save_gpx_button)
 
@@ -412,6 +420,7 @@ class MainWindow(Adw.ApplicationWindow):
         close_details_button.add_css_class("flat")
         close_details_button.set_valign(Gtk.Align.START)
         close_details_button.set_tooltip_text("Close details")
+        close_details_button.update_property([Gtk.AccessibleProperty.LABEL], ["Close details"])
         close_details_button.connect("clicked", self._close_details_panel)
         detail_header.append(close_details_button)
 
@@ -511,6 +520,7 @@ class MainWindow(Adw.ApplicationWindow):
         self.map_flyout_close_button = Gtk.Button.new_from_icon_name(icons.CLOSE)
         self.map_flyout_close_button.add_css_class("flat")
         self.map_flyout_close_button.set_tooltip_text("Close map preview")
+        self.map_flyout_close_button.update_property([Gtk.AccessibleProperty.LABEL], ["Close map preview"])
         self.map_flyout_close_button.connect("clicked", self._dismiss_map_flyout)
         header.append(self.map_flyout_close_button)
 
@@ -661,7 +671,9 @@ class MainWindow(Adw.ApplicationWindow):
                 self.sidebar_button.set_active(show_sidebar)
             finally:
                 self._syncing_sidebar_button = False
-        self.sidebar_button.set_tooltip_text("Hide walk planner" if show_sidebar else "Show walk planner")
+        label = "Hide walk planner" if show_sidebar else "Show walk planner"
+        self.sidebar_button.set_tooltip_text(label)
+        self.sidebar_button.update_property([Gtk.AccessibleProperty.LABEL], [label])
 
     def _render_initial_results(self) -> None:
         self._hide_map_flyout()
@@ -1378,6 +1390,7 @@ class MainWindow(Adw.ApplicationWindow):
         content.append(Gtk.Image.new_from_icon_name(icons.EXTERNAL_LINK))
         content.append(Gtk.Label.new(title))
         button.set_child(content)
+        button.update_property([Gtk.AccessibleProperty.LABEL], [title])
         button.connect("clicked", lambda _button, link=uri: self._launch_uri(link))
         self.detail_rows.append(button)
 
