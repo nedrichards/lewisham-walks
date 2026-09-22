@@ -76,6 +76,8 @@ Titles, inscriptions and addresses originate in a Lewisham Council document rele
 
 The DOCX is committed in the repository as the public source artefact disclosed by Lewisham Council through that request. Coordinates are matched to Open Plaques where possible; two remaining points are explicitly marked approximate. The FOI response does not state an explicit open-data licence, so its inclusion records the document's provenance without asserting that it is covered by the application's GPL licence.
 
+Plaques unveiled after that 2025 document are reviewed separately in `data/corrections/recent-maroon-plaques.json`. `scripts/build_seed_fixture.py` includes these records when regenerating `plaques.json`. The St John’s rail crash memorial was unveiled on 19 September 2026, according to the [St John’s Society](https://st-johns-soc.org/st-johns-rail-crash-plaque-unveiling); [Salamander News](https://www.salamandernews.org/2026-09-st-johns-marks-the-lewisham-rail-crash-of-1957/) also reports on the plaque. Its coordinate locates St Johns station, while the reported plaque position is on the approach wall. The exact wall coordinate needs a site check. The short description is original editorial text, not a transcription of the inscription.
+
 ## Freddy's Blossom Walk
 
 The bundled blossom points are derived from a publicly shared community route created by Freddy's family and supported by the community and Street Trees for Living:

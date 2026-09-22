@@ -1,6 +1,7 @@
 import json
 import unittest
 from importlib import resources
+from pathlib import Path
 
 from lewisham_walks.models import DiscoveryKind
 from lewisham_walks.store import (
@@ -45,7 +46,23 @@ class StoreTests(unittest.TestCase):
         self.assertIn("openplaques", collections)
         self.assertIn("lewisham-maroon", collections)
         self.assertEqual({"Greenwich", "Lewisham", "Southwark"}, boroughs)
-        self.assertEqual(29, sum(1 for discovery in discoveries if discovery.collection == "lewisham-maroon"))
+        self.assertEqual(30, sum(1 for discovery in discoveries if discovery.collection == "lewisham-maroon"))
+
+    def test_recent_st_johns_plaque_is_bundled_with_its_own_provenance(self):
+        additions_path = Path(__file__).resolve().parents[1] / "data/corrections/recent-maroon-plaques.json"
+        additions = json.loads(additions_path.read_text(encoding="utf-8"))
+        self.assertEqual(1, len(additions))
+        plaque = next(
+            discovery for discovery in load_seed_discoveries()
+            if discovery.id == "lewisham-maroon-st-johns-rail-crash"
+        )
+
+        self.assertEqual(additions[0]["title"], plaque.title)
+        self.assertEqual("lewisham-maroon", plaque.collection)
+        self.assertEqual("2026-09-19", plaque.attributes["unveiled"])
+        self.assertFalse(plaque.is_accurate)
+        self.assertIn("approach", plaque.address)
+        self.assertTrue(plaque.source_url.startswith("https://st-johns-soc.org/"))
 
     def test_bundled_blossom_fixture_keeps_route_order_and_outlying_points(self):
         points = load_seed_blossom_discoveries()

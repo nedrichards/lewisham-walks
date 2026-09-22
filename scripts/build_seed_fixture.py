@@ -8,6 +8,12 @@ from pathlib import Path
 import import_maroon_docx
 import import_openplaques
 
+RECENT_MAROON_PLAQUES = Path("data/corrections/recent-maroon-plaques.json")
+
+
+def load_recent_maroon_plaques(path: Path = RECENT_MAROON_PLAQUES) -> list[dict]:
+    return json.loads(path.read_text(encoding="utf-8"))
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Build the bundled plaque fixture.")
@@ -27,7 +33,10 @@ def main() -> int:
     }
     corrections = import_openplaques.load_corrections(Path("data/corrections/openplaques-lewisham.json"))
     openplaques_records = import_openplaques.records_from_boundaries(dump, boundaries, corrections)
-    maroon_records = import_maroon_docx.records_from_docx(args.maroon_docx, dump)
+    maroon_records = [
+        *import_maroon_docx.records_from_docx(args.maroon_docx, dump),
+        *load_recent_maroon_plaques(),
+    ]
 
     maroon_openplaques_ids = {record["external_id"] for record in maroon_records if record.get("external_id")}
     records = [

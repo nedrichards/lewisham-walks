@@ -1,0 +1,24 @@
+[
+  {
+    "id": "lewisham-maroon-st-johns-rail-crash",
+    "kind": "plaque",
+    "collection": "lewisham-maroon",
+    "source_name": "St John's Society",
+    "external_id": "",
+    "title": "St John’s rail crash of 1957",
+    "description": "This plaque remembers the 90 people who died in the rail crash near St Johns station on 4 December 1957, and the St John’s residents who helped emergency services rescue those caught up in it. It was unveiled on 19 September 2026.",
+    "lat": 51.46931,
+    "lon": -0.02262,
+    "address": "Brick wall on the approach to St Johns station, St Johns Vale, SE8 4EW",
+    "borough": "Lewisham",
+    "source_url": "https://st-johns-soc.org/st-johns-rail-crash-plaque-unveiling",
+    "is_accurate": false,
+    "curation_status": "in_scope",
+    "curation_note": "Plaque location described by St John's Society and Salamander News. Coordinate marks the station, not the exact position on the approach wall.",
+    "attributes": {
+      "colour": "maroon",
+      "unveiled": "2026-09-19",
+      "report_url": "https://www.salamandernews.org/2026-09-st-johns-marks-the-lewisham-rail-crash-of-1957/"
+    }
+  }
+]
