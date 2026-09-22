@@ -24,6 +24,6 @@ Lewisham Walks is a GNOME-first, adaptive GTK4/Libadwaita application for local 
 
 ## Validation
 
-Run the gate documented in `CONTRIBUTING.md`. GTK behaviour is authoritative in the pinned GNOME 50 SDK. For UI changes, additionally capture and inspect desktop and 390×780 layouts using `scripts/capture_ui.py`.
+Run the gate documented in `CONTRIBUTING.md`. GTK behaviour is authoritative in the pinned GNOME 51 SDK, with GTK 4.24 and libadwaita 1.10. For UI changes, additionally capture and inspect desktop and 390×780 layouts using `scripts/capture_ui.py`.
 
 The development manifest uses local source and runs tests. The production manifest must use the public GitHub repository and an exact commit SHA. Do not repin it for ordinary unreviewed work.

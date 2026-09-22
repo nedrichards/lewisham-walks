@@ -8,6 +8,10 @@ project(
 i18n = import('i18n')
 gnome = import('gnome')
 
+# Keep source builds on the same GTK/libadwaita baseline as the GNOME 51 Flatpak.
+dependency('gtk4', version: '>= 4.24.0')
+dependency('libadwaita-1', version: '>= 1.10.0')
+
 subdir('data')
 subdir('src')
 subdir('tests')

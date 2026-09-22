@@ -21,7 +21,7 @@ This repository is an early public development checkpoint. There is not yet a ta
 
 ## Build and install
 
-Install the GNOME 50 SDK and Flatpak Builder, then run:
+Install the GNOME 51 SDK and Flatpak Builder, then run:
 
 ```sh
 flatpak run org.flatpak.Builder --force-clean --disable-rofiles-fuse \

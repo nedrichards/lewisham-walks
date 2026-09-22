@@ -1,13 +1,13 @@
 # Flathub readiness
 
 The application is not yet submitted. This checklist records the local audit of
-5 September 2026 and the work needed to turn it into a reviewed stable release.
+5 September 2026, the GNOME 51 validation on 22 September 2026, and the work needed to turn it into a reviewed stable release.
 The production source commit remains unchanged until that release is reviewed.
 
 ## Verified locally
 
 - Ruff, Python compilation, strict GSettings validation and pedantic AppStream validation pass.
-- All 120 tests pass in GNOME 50, including the GTK responsive tests.
+- All 124 tests pass in the GNOME 51 development SDK, including the GTK responsive tests. The original 5 September audit passed 120 tests in GNOME 50.
 - The development Flatpak builds and its Meson tests pass.
 - The production manifest passes `flatpak-builder-lint manifest`.
 - Desktop and 390 × 780 captures were inspected, including a rendered street map

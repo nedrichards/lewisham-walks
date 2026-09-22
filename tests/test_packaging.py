@@ -8,6 +8,18 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 
 
 class DevelopmentManifestTests(unittest.TestCase):
+    def test_manifests_target_gnome_51_and_meson_requires_its_widget_versions(self):
+        for filename in (f"{APP_ID}.json", f"{APP_ID}.Devel.json"):
+            with self.subTest(manifest=filename):
+                manifest = json.loads((REPOSITORY_ROOT / filename).read_text())
+                self.assertEqual("org.gnome.Platform", manifest["runtime"])
+                self.assertEqual("org.gnome.Sdk", manifest["sdk"])
+                self.assertEqual("51", manifest["runtime-version"])
+
+        meson = (REPOSITORY_ROOT / "meson.build").read_text()
+        self.assertIn("dependency('gtk4', version: '>= 4.24.0')", meson)
+        self.assertIn("dependency('libadwaita-1', version: '>= 1.10.0')", meson)
+
     def test_development_identity_and_local_build_contract(self):
         manifest = json.loads(
             (REPOSITORY_ROOT / "com.nedrichards.lewishamwalks.Devel.json").read_text()

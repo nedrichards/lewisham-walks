@@ -32,10 +32,12 @@ jobs:
         run: PYTHONPATH=src python3 -m unittest discover -s tests
 
   flatpak:
-    name: GNOME 50 Flatpak
+    name: GNOME 51 Flatpak
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
+      # Flathub's published images currently stop at GNOME 50; Builder installs
+      # the GNOME 51 SDK and runtime requested by the development manifest.
+      image: ghcr.io/flathub-infra/flatpak-github-actions:freedesktop-25.08
       options: --privileged
     steps:
       - uses: actions/checkout@v7
@@ -49,4 +51,5 @@ jobs:
           bundle: lewisham-walks.flatpak
           manifest-path: com.nedrichards.lewishamwalks.Devel.json
           cache-key: flatpak-builder-${{ github.sha }}
+          run-tests: true
           upload-artifact: true

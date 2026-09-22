@@ -8,7 +8,7 @@ Issues and small, focused pull requests that strengthen Lewisham Walks are still
 
 ## Development
 
-Use Python 3.10 or newer, Meson, Ruff, and the GNOME 50 SDK. Keep planning and data transformations testable without GTK or network access. Network providers must retain timeouts, an identifying user agent, and an honest local fallback where practical.
+Use Python 3.10 or newer, Meson, Ruff, and the GNOME 51 SDK (GTK 4.24 and libadwaita 1.10). Keep planning and data transformations testable without GTK or network access. Network providers must retain timeouts, an identifying user agent, and an honest local fallback where practical.
 
 Before opening a pull request, run:
 
