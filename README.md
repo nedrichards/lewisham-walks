@@ -61,3 +61,6 @@ The generated discovery data has source-specific terms which are separate from t
 ## Licence
 
 Lewisham Walks source code is licensed under the [GNU General Public License v3.0 or later](COPYING). Data and map attribution are documented separately in [DATA_SOURCES.md](DATA_SOURCES.md).
+
+Dependency checks, CI artifacts, and release packaging are described in
+[Maintenance](docs/maintenance.md).

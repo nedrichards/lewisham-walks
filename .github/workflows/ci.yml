@@ -1,6 +1,7 @@
 name: CI
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
   pull_request:
@@ -23,7 +24,7 @@ jobs:
         with:
           python-version: "3.13"
       - name: Install source-test dependencies
-        run: python3 -m pip install ruff==0.16.0 requests==2.32.5
+        run: python3 -m pip install -r requirements-dev.txt
       - name: Lint
         run: ruff check .
       - name: Compile Python
@@ -48,8 +49,42 @@ jobs:
       - name: Build and test Flatpak
         uses: flatpak/flatpak-github-actions/flatpak-builder@v6.8
         with:
-          bundle: lewisham-walks.flatpak
+          bundle: Lewisham-Walks-Devel-${{ github.sha }}-x86_64.flatpak
           manifest-path: com.nedrichards.lewishamwalks.Devel.json
           cache-key: flatpak-builder-${{ github.sha }}
           run-tests: true
-          upload-artifact: true
+          keep-build-dirs: true
+          upload-artifact: false
+
+      - name: Upload development bundle
+        id: upload
+        uses: actions/upload-artifact@v7
+        with:
+          name: Lewisham-Walks-Devel-${{ github.sha }}-x86_64
+          path: Lewisham-Walks-Devel-${{ github.sha }}-x86_64.flatpak
+          if-no-files-found: error
+          retention-days: 14
+      - name: Summarize development bundle
+        env:
+          ARTIFACT_URL: ${{ steps.upload.outputs.artifact-url }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          {
+            echo '### Development Flatpak'
+            echo "Download: ${ARTIFACT_URL}"
+            echo "Built checkout: ${GITHUB_SHA}"
+            echo "PR head: ${PR_HEAD}"
+            echo 'Retention: 14 days'
+            echo 'Install after extracting the artifact:'
+            echo '```console'
+            echo "flatpak install --user ./Lewisham-Walks-Devel-${GITHUB_SHA}-x86_64.flatpak"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Preserve Flatpak test logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: flatpak-test-logs-${{ github.sha }}
+          path: .flatpak-builder/build/**/meson-logs/testlog.*
+          if-no-files-found: warn
+          retention-days: 14
