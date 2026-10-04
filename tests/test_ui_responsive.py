@@ -1,3 +1,4 @@
+import time
 import unittest
 from dataclasses import replace
 from unittest import mock
@@ -799,10 +800,23 @@ class PlaqueBrowserResponsiveTests(unittest.TestCase):
             while context.pending():
                 context.iteration(False)
 
+    def _present_compact(self, browser) -> None:
+        browser.set_default_size(390, 720)
+        browser.present()
+        # X11 allocation arrives after present(), often on the next frame.
+        # Draining only events already pending can finish before that frame.
+        deadline = time.monotonic() + 3.0
+        while browser.get_current_breakpoint() is not browser.compact_breakpoint and time.monotonic() < deadline:
+            self._flush()
+            time.sleep(0.005)
+        self.assertIs(
+            browser.get_current_breakpoint(),
+            browser.compact_breakpoint,
+            f"Compact layout did not settle: allocated {browser.get_width()}x{browser.get_height()}",
+        )
+
     def test_browser_uses_an_overlay_list_in_compact_layout(self) -> None:
-        self.window.set_default_size(390, 720)
-        self.window.present()
-        self._flush()
+        self._present_compact(self.window)
 
         self.assertIs(self.window.get_current_breakpoint(), self.window.compact_breakpoint)
         self.assertTrue(self.window.split_view.get_collapsed())
@@ -813,9 +827,7 @@ class PlaqueBrowserResponsiveTests(unittest.TestCase):
         story = Discovery("story", "Local story", "A place to find", Coordinate(51.469, -0.023))
         browser = DiscoveryBrowserWindow(self.parent, [story], lambda _story: None)
         self.addCleanup(browser.destroy)
-        browser.set_default_size(390, 720)
-        browser.present()
-        self._flush()
+        self._present_compact(browser)
 
         browser._on_row_activated(browser.list_box, browser.list_box.get_first_child())
         self._flush()
@@ -827,9 +839,7 @@ class PlaqueBrowserResponsiveTests(unittest.TestCase):
         story = Discovery("story", "Local story", "A place to find", Coordinate(51.469, -0.023))
         browser = DiscoveryBrowserWindow(self.parent, [story], lambda _story: None)
         self.addCleanup(browser.destroy)
-        browser.set_default_size(390, 720)
-        browser.present()
-        self._flush()
+        self._present_compact(browser)
 
         browser.show_discovery(story)
         self._flush()
