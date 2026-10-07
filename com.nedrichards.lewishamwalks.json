@@ -32,7 +32,7 @@
                     "type": "file",
                     "url": "https://files.pythonhosted.org/packages/fc/ad/d07d7862a62ffa6d79d68074d14823243dd235a77c45262acbf6adeb28bf/charset_normalizer-3.5.2-py3-none-any.whl",
                     "sha256": "b6b751274acb69d77b3323d6b7dbaa3c7fdfc1eb829b7eb61d262f32e1af9685",
-                    "x-checker-data": {"type": "pypi", "name": "charset_normalizer"}
+                    "x-checker-data": {"type": "pypi", "name": "charset_normalizer", "packagetype": "bdist_wheel"}
                 },
                 {
                     "type": "file",
