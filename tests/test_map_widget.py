@@ -107,6 +107,23 @@ class MapProjectionTests(unittest.TestCase):
         self.assertGreaterEqual(len({round(item.coordinate.lon, 2) for item in selected}), 4)
         self.assertGreaterEqual(len({round(item.coordinate.lat, 2) for item in selected}), 3)
 
+    def test_viewport_round_robin_preserves_rank_and_skips_close_duplicates(self):
+        # Each cell has more than one candidate. Prefer curated records, discard
+        # the colocated copy, and revisit cells in the same order on pass two.
+        coordinate = Coordinate(51.45, -0.06)
+        discoveries = [
+            Discovery("west-far", "West far", "Story", Coordinate(51.46, -0.06)),
+            Discovery("west-copy", "West copy", "Story", coordinate),
+            Discovery("west-first", "West first", "Story", coordinate, curation_status="in_scope"),
+            Discovery("east-far", "East far", "Story", Coordinate(51.46, 0.02)),
+            Discovery("east-first", "East first", "Story", Coordinate(51.45, 0.02), curation_status="in_scope"),
+        ]
+        bounds = coordinate_bounds([Coordinate(51.44, -0.08), Coordinate(51.48, 0.04)], padding_ratio=0)
+        selected = discoveries_for_viewport(discoveries, bounds, coordinate, limit=4, columns=2, rows=1)
+        self.assertEqual([item.id for item in selected], ["west-first", "east-first", "west-far", "east-far"])
+        limited = discoveries_for_viewport(discoveries, bounds, coordinate, limit=3, columns=2, rows=1)
+        self.assertEqual(limited, selected[:3])
+
 
 class MapStyleTests(unittest.TestCase):
     def test_day_and_night_styles_share_the_libshumate_tile_cache_key(self):

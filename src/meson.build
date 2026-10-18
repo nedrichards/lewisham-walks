@@ -2,6 +2,9 @@ pkgdatadir = get_option('prefix') / get_option('datadir') / meson.project_name()
 moduledir = pkgdatadir / 'lewisham_walks'
 python = import('python')
 py_install = python.find_installation('python3')
+if not py_install.language_version().version_compare('>=3.14') or not py_install.language_version().version_compare('<3.15')
+  error('Lewisham Walks requires Python 3.14.x from the GNOME 51 SDK')
+endif
 
 conf = configuration_data()
 conf.set('PYTHON', py_install.full_path())

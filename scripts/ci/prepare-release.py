@@ -27,7 +27,7 @@ def prepare(manifest_path, tag, default_branch, workflow_ref, repository, test_m
         [GIT, "merge-base", "--is-ancestor", commit, "HEAD"], check=True
     )
     path = Path(manifest_path)
-    manifest = json.loads(path.read_text())
+    manifest = json.loads(path.read_text(encoding="utf-8"))
     if manifest.get("app-id", manifest.get("id", "")).endswith(".Devel"):
         raise ValueError("Release manifest must use the production app ID")
     source = manifest["modules"][-1]["sources"][0]
@@ -48,7 +48,7 @@ def prepare(manifest_path, tag, default_branch, workflow_ref, repository, test_m
     else:
         raise ValueError("Unsupported application source")
     if test_manifest:
-        development = json.loads(Path(test_manifest).read_text())
+        development = json.loads(Path(test_manifest).read_text(encoding="utf-8"))
         if any(development[key] != manifest[key] for key in ("runtime", "runtime-version", "sdk")):
             raise ValueError("Test tools must target the production SDK")
         names = {module["name"] for module in manifest["modules"] if isinstance(module, dict)}
@@ -67,7 +67,7 @@ def prepare(manifest_path, tag, default_branch, workflow_ref, repository, test_m
         options = application.setdefault("build-options", {})
         options["cflags"] = options.get("cflags", "") + " -g0"
         application["test-rule"] = ""
-        harness = Path(__file__).with_name("headless-meson.py").read_text()
+        harness = Path(__file__).with_name("headless-meson.py").read_text(encoding="utf-8")
         application["sources"].append({
             "type": "inline", "dest-filename": "ci-headless-meson.py", "contents": harness
         })
@@ -75,7 +75,7 @@ def prepare(manifest_path, tag, default_branch, workflow_ref, repository, test_m
             "dbus-run-session -- python3 ../ci-headless-meson.py meson test --no-rebuild --print-errorlogs --timeout-multiplier=3 --num-processes=1"
         ]
     output = path.parent / "release-build.json"
-    output.write_text(json.dumps(manifest, indent=2) + "\n")
+    output.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     return {"commit": commit, "checkout": checkout, "manifest": str(output), "version": tag[1:]}
 
 

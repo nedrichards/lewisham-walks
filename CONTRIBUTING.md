@@ -8,12 +8,13 @@ Issues and small, focused pull requests that strengthen Lewisham Walks are still
 
 ## Development
 
-Use Python 3.10 or newer, Meson, Ruff, and the GNOME 51 SDK (GTK 4.24 and libadwaita 1.10). Keep planning and data transformations testable without GTK or network access. Network providers must retain timeouts, an identifying user agent, and an honest local fallback where practical.
+Use Python 3.14.x, Meson, Ruff, and the GNOME 51 SDK (GTK 4.24 and libadwaita 1.10). Python 3.14 is the only supported Python minor version; use the SDK's maintained patch release. Source CI uses the same minor version, and Meson rejects other interpreters. Keep planning and data transformations testable without GTK or network access. Network providers must retain timeouts, an identifying user agent, and an honest local fallback where practical.
 
 Before opening a pull request, run:
 
 ```sh
 ruff check .
+ruff check --preview --extend-select PLW1514,RUF056 .
 python3 -m compileall -q src scripts tests
 PYTHONPATH=src python3 -m unittest discover -s tests
 meson setup --reconfigure build-dir
@@ -22,6 +23,10 @@ glib-compile-schemas --strict --dry-run data
 appstreamcli validate --pedantic --no-net data/com.nedrichards.lewishamwalks.metainfo.xml.in
 ./scripts/test_in_gnome_sdk.sh
 ```
+
+Install the pinned Ruff with `python3 -m pip install -r requirements-dev.txt`.
+Both lint commands are required; preview rules are selected individually.
+See [the Ruff policy](docs/ruff-policy.md) for the rule choices and reviewed recovery boundaries.
 
 For packaging changes, also build `com.nedrichards.lewishamwalks.Devel.json`. The development manifest always uses the local checkout and runs tests. The production manifest is pinned to an exact public Git commit and is updated only for a reviewed checkpoint or release.
 

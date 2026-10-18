@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-from __future__ import annotations
-
 import argparse
 import json
 import re
 from pathlib import Path
 from typing import Any
+
+type GeoRing = list[list[float]]
+type GeoPolygon = list[GeoRing]
+type GeoMultiPolygon = list[GeoPolygon]
 
 DEFAULT_BOUNDARIES = {
     "Lewisham": Path("data/boundaries/lewisham.geojson"),
@@ -14,7 +16,7 @@ DEFAULT_BOUNDARIES = {
 }
 
 
-def point_in_ring(lon: float, lat: float, ring: list[list[float]]) -> bool:
+def point_in_ring(lon: float, lat: float, ring: GeoRing) -> bool:
     inside = False
     previous = len(ring) - 1
     for current, (current_lon, current_lat) in enumerate(ring):
@@ -28,13 +30,13 @@ def point_in_ring(lon: float, lat: float, ring: list[list[float]]) -> bool:
     return inside
 
 
-def point_in_polygon(lon: float, lat: float, polygon: list[list[list[float]]]) -> bool:
+def point_in_polygon(lon: float, lat: float, polygon: GeoPolygon) -> bool:
     shell = polygon[0]
     holes = polygon[1:]
     return point_in_ring(lon, lat, shell) and not any(point_in_ring(lon, lat, hole) for hole in holes)
 
 
-def point_in_multipolygon(lon: float, lat: float, multipolygon: list[list[list[list[float]]]]) -> bool:
+def point_in_multipolygon(lon: float, lat: float, multipolygon: GeoMultiPolygon) -> bool:
     return any(point_in_polygon(lon, lat, polygon) for polygon in multipolygon)
 
 
@@ -59,9 +61,13 @@ def normalise_text(value: str) -> str:
 
 
 def load_corrections(path: Path | None) -> dict[str, Any]:
-    if path is None or not path.exists():
+    if path is None:
         return {"exclude": [], "records": {}}
-    payload = json.loads(path.read_text(encoding="utf-8"))
+    try:
+        contents = path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return {"exclude": [], "records": {}}
+    payload = json.loads(contents)
     return {
         "exclude": [str(item) for item in payload.get("exclude", [])],
         "records": {str(key): value for key, value in payload.get("records", {}).items()},
@@ -105,7 +111,7 @@ def record_from_feature(feature: dict[str, Any], corrections: dict[str, Any], bo
     }
 
 
-def boundary_to_multipolygon(boundary: dict[str, Any]) -> list[list[list[list[float]]]]:
+def boundary_to_multipolygon(boundary: dict[str, Any]) -> GeoMultiPolygon:
     geometry = boundary["geometry"]
     if geometry["type"] == "Polygon":
         return [geometry["coordinates"]]

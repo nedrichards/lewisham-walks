@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import json
 from importlib import resources
 
@@ -72,7 +70,7 @@ def discovery_from_record(record: dict) -> Discovery:
         image_url=record.get("image_url", ""),
         external_id=str(record.get("external_id", record.get("openplaques_id", ""))),
         borough=record.get("borough", ""),
-        is_accurate=bool(record.get("is_accurate", False)),
+        is_accurate=bool(record.get("is_accurate")),
         curation_status=record.get("curation_status", "candidate"),
         curation_note=record.get("curation_note", ""),
         route_order=record.get("route_order"),

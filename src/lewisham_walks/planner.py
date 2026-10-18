@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import math
 from dataclasses import replace
 from itertools import pairwise
@@ -15,6 +13,7 @@ from .models import (
     RouteRequest,
     RouteStep,
     RouteVisit,
+    RoutingResult,
     StopPreference,
 )
 
@@ -22,7 +21,7 @@ MAX_BLOSSOM_ROUTE_POINTS = 48
 
 
 class RoutingProvider(Protocol):
-    def route(self, waypoints: list[Coordinate], request: RouteRequest) -> tuple[list[Coordinate], list[RouteStep], float, float]:
+    def route(self, waypoints: list[Coordinate], request: RouteRequest) -> RoutingResult:
         """Return geometry, steps, distance metres, walking seconds."""
 
 
@@ -41,23 +40,24 @@ def haversine_m(a: Coordinate, b: Coordinate) -> float:
     return 2 * radius * math.asin(math.sqrt(value))
 
 
-def straight_line_route(waypoints: list[Coordinate], request: RouteRequest) -> tuple[list[Coordinate], list[RouteStep], float, float]:
-    distance = sum(haversine_m(a, b) for a, b in pairwise(waypoints))
-    walking_seconds = distance / (request.walking_speed_kmh * 1000 / 3600)
-    steps = [
-        RouteStep(
+def straight_line_route(waypoints: list[Coordinate], request: RouteRequest) -> RoutingResult:
+    speed_m_s = request.walking_speed_kmh * 1000 / 3600
+    steps: list[RouteStep] = []
+    for index, (a, b) in enumerate(pairwise(waypoints)):
+        leg_distance = haversine_m(a, b)
+        steps.append(RouteStep(
             instruction=f"Walk to stop {index + 1}",
-            distance_m=haversine_m(a, b),
-            duration_s=haversine_m(a, b) / (request.walking_speed_kmh * 1000 / 3600),
+            distance_m=leg_distance,
+            duration_s=leg_distance / speed_m_s,
             leg_index=index,
-        )
-        for index, (a, b) in enumerate(pairwise(waypoints))
-    ]
+        ))
+    distance = sum(step.distance_m for step in steps)
+    walking_seconds = distance / speed_m_s
     return waypoints, steps, distance, walking_seconds
 
 
 class StraightLineRoutingProvider:
-    def route(self, waypoints: list[Coordinate], request: RouteRequest) -> tuple[list[Coordinate], list[RouteStep], float, float]:
+    def route(self, waypoints: list[Coordinate], request: RouteRequest) -> RoutingResult:
         return straight_line_route(waypoints, request)
 
 
@@ -118,7 +118,8 @@ class RoutePlanner:
         budget_seconds = request.duration_minutes * 60 * 0.82
         selected: list[Discovery] = []
         current = request.start
-        unseen = [discovery for discovery in self._discoveries if discovery.id not in request.seen_story_ids]
+        seen_story_ids = set(request.seen_story_ids)
+        unseen = [discovery for discovery in self._discoveries if discovery.id not in seen_story_ids]
         candidates = unseen or list(self._discoveries)
         # A route through any story is at least its direct start/story/end trip.
         # Reject distant starts in one pass instead of repeatedly ranking the corpus.

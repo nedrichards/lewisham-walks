@@ -1,23 +1,21 @@
-from __future__ import annotations
-
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class Coordinate:
     lat: float
     lon: float
 
 
-class DiscoveryKind(str, Enum):
+class DiscoveryKind(StrEnum):
     PLAQUE = "plaque"
     BLOSSOM = "blossom"
     LISTED_BUILDING = "listed-building"
     CULTURAL_VENUE = "cultural-venue"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class Discovery:
     id: str
     title: str
@@ -42,7 +40,7 @@ class Discovery:
         return f"{self.coordinate.lat:.5f}, {self.coordinate.lon:.5f}"
 
 
-class StopPreference(str, Enum):
+class StopPreference(StrEnum):
     NONE = "none"
     CAFE_END = "cafe_end"
     PUB_END = "pub_end"
@@ -50,13 +48,13 @@ class StopPreference(str, Enum):
     PUB_ALONG = "pub_along"
 
 
-class RouteMode(str, Enum):
+class RouteMode(StrEnum):
     DISCOVERIES = "discoveries"
     BLOSSOM_WALK = "blossom_walk"
     MIXED = "mixed"
 
 
-class RouteTheme(str, Enum):
+class RouteTheme(StrEnum):
     SURPRISE = "surprise"
     PEOPLE = "people"
     PLACES = "places"
@@ -65,7 +63,7 @@ class RouteTheme(str, Enum):
     CULTURE = "culture"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class AmenityStop:
     id: str
     name: str
@@ -75,7 +73,7 @@ class AmenityStop:
     detour_minutes: float = 0.0
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class RouteRequest:
     start: Coordinate
     duration_minutes: int
@@ -90,7 +88,7 @@ class RouteRequest:
     variation_seed: int = 0
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class RouteStep:
     instruction: str
     distance_m: float
@@ -98,7 +96,7 @@ class RouteStep:
     leg_index: int = 0
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class RouteVisit:
     kind: str
     title: str
@@ -112,7 +110,7 @@ class RouteVisit:
         return f"{self.coordinate.lat:.5f}, {self.coordinate.lon:.5f}"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class RoutePlan:
     request: RouteRequest
     discoveries: list[Discovery]
@@ -133,3 +131,6 @@ class RoutePlan:
     @property
     def total_minutes(self) -> float:
         return self.total_seconds / 60.0
+
+
+type RoutingResult = tuple[list[Coordinate], list[RouteStep], float, float]

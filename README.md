@@ -24,16 +24,17 @@ This repository is an early public development checkpoint. There is not yet a ta
 Install the GNOME 51 SDK and Flatpak Builder, then run:
 
 ```sh
-flatpak run org.flatpak.Builder --force-clean --disable-rofiles-fuse \
-  --user --install-deps-from=flathub --ccache \
-  --install flatpak-build com.nedrichards.lewishamwalks.Devel.json
+./scripts/local-flatpak.sh
 
 flatpak run com.nedrichards.lewishamwalks.Devel
 ```
 
-`--disable-rofiles-fuse` is useful in restricted or containerised environments where Flatpak Builder cannot mount its normal read-only filesystem.
+The script disables rofiles-fuse and cleans temporary build directories.
+See [local builds and updates](docs/local-flatpak.md) for the durable update
+repository and production profile.
 
-For a source-tree development build:
+For a source-tree development build, use Python 3.14.x and the GNOME 51 SDK
+(GTK 4.24 and libadwaita 1.10). Other Python minor versions are unsupported:
 
 ```sh
 meson setup build-dir

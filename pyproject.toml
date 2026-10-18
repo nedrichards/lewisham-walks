@@ -1,9 +1,12 @@
 [tool.ruff]
+required-version = "==0.17.0"
 line-length = 120
-target-version = "py310"
+target-version = "py314"
 src = ["src", "tests"]
 
 [tool.ruff.lint]
+# Preview runs opt into individual rules rather than every rule in these families.
+explicit-preview-rules = true
 select = ["E", "F", "W", "I"]
 extend-select = [
     "A",
@@ -15,8 +18,12 @@ extend-select = [
     "EXE",
     "FURB",
     "G",
+    "ISC004",
     "LOG",
     "PERF",
+    "PGH003",
+    "PGH004",
+    "PGH005",
     "PIE",
     "PLC",
     "PLE",
@@ -26,6 +33,11 @@ extend-select = [
     "RUF",
     "S",
     "SIM",
+    "T100",
+    "TRY201",
+    "TRY203",
+    "TRY400",
+    "TRY401",
     "UP",
 ]
 ignore = ["E501"]

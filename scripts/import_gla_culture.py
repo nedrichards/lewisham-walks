@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-from __future__ import annotations
-
 import argparse
 import csv
 import hashlib
@@ -10,6 +8,10 @@ from contextlib import suppress
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
+
+type GeoRing = list[list[float]]
+type GeoPolygon = list[GeoRing]
+type GeoMultiPolygon = list[GeoPolygon]
 
 DEFAULT_BOUNDARIES = {
     "Lewisham": Path("data/boundaries/lewisham.geojson"),
@@ -45,7 +47,7 @@ CATEGORY_PRIORITY = (
 )
 
 
-def point_in_ring(lon: float, lat: float, ring: list[list[float]]) -> bool:
+def point_in_ring(lon: float, lat: float, ring: GeoRing) -> bool:
     inside = False
     previous = len(ring) - 1
     for current, (current_lon, current_lat) in enumerate(ring):
@@ -59,13 +61,13 @@ def point_in_ring(lon: float, lat: float, ring: list[list[float]]) -> bool:
     return inside
 
 
-def point_in_polygon(lon: float, lat: float, polygon: list[list[list[float]]]) -> bool:
+def point_in_polygon(lon: float, lat: float, polygon: GeoPolygon) -> bool:
     return point_in_ring(lon, lat, polygon[0]) and not any(
         point_in_ring(lon, lat, hole) for hole in polygon[1:]
     )
 
 
-def boundary_to_multipolygon(boundary: dict[str, Any]) -> list[list[list[list[float]]]]:
+def boundary_to_multipolygon(boundary: dict[str, Any]) -> GeoMultiPolygon:
     geometry = boundary["geometry"]
     if geometry["type"] == "Polygon":
         return [geometry["coordinates"]]
@@ -74,7 +76,7 @@ def boundary_to_multipolygon(boundary: dict[str, Any]) -> list[list[list[list[fl
     raise ValueError("Boundary must be Polygon or MultiPolygon GeoJSON.")
 
 
-def point_in_multipolygon(lon: float, lat: float, multipolygon: list[list[list[list[float]]]]) -> bool:
+def point_in_multipolygon(lon: float, lat: float, multipolygon: GeoMultiPolygon) -> bool:
     return any(point_in_polygon(lon, lat, polygon) for polygon in multipolygon)
 
 
@@ -147,7 +149,7 @@ def included_by_curation(category: str, name: str, curation: dict[str, Any]) -> 
 def source_record(
     category: str,
     row: dict[str, str],
-    borough_shapes: dict[str, list[list[list[list[float]]]]],
+    borough_shapes: dict[str, GeoMultiPolygon],
     curation: dict[str, Any],
 ) -> dict[str, Any] | None:
     if category not in CATEGORY_INFO:

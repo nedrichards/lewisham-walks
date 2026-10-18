@@ -47,6 +47,22 @@ class FakeSession:
 
 
 class OpenStreetMapRoutingTests(unittest.TestCase):
+    def test_invalid_service_route_uses_the_local_fallback(self):
+        session = mock.Mock()
+        payload = FakeResponse().json()
+        payload["routes"][0]["distance"] = -1
+        session.get.return_value.json.return_value = payload
+        routing = LocalFallbackRoutingProvider(OpenStreetMapRoutingProvider(session))
+        waypoints = [Coordinate(51.46, -0.01), Coordinate(51.47, -0.02)]
+        with mock.patch("lewisham_walks.providers.routing.time.sleep"):
+            geometry, steps, distance, duration = routing.route(waypoints, RouteRequest(waypoints[0], 60))
+        self.assertTrue(routing.used_fallback)
+        self.assertEqual(geometry, waypoints)
+        self.assertEqual(len(steps), 1)
+        self.assertGreater(distance, 0)
+        self.assertGreater(duration, 0)
+        session.get.assert_called_once()
+
     def test_connection_failure_uses_local_itinerary_without_repeating_amenities(self):
         session = mock.Mock()
         session.get.side_effect = requests.ConnectionError("offline")

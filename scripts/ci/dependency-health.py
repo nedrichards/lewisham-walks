@@ -18,7 +18,7 @@ def modules(items, parent):
             # Cargo is covered by Dependabot/RustSec, not URL probing every crate.
             if "cargo-sources" not in item:
                 path = parent / item
-                yield from modules(json.loads(path.read_text()), path.parent)
+                yield from modules(json.loads(path.read_text(encoding="utf-8")), path.parent)
         else:
             yield item
             yield from modules(item.get("modules", []), parent)
@@ -34,7 +34,7 @@ def main():
     external = []
     for filename in args.manifests:
         path = Path(filename)
-        manifest = json.loads(path.read_text())
+        manifest = json.loads(path.read_text(encoding="utf-8"))
         for runtime in (manifest["runtime"], manifest["sdk"]):
             ref = f"{runtime}//{manifest['runtime-version']}"
             if ref in seen:
@@ -136,7 +136,7 @@ def main():
                     failed = True
     # This input deliberately contains dependencies only, never the app's release pin.
     manifest["modules"] = external
-    Path("dependency-sources.json").write_text(json.dumps(manifest, indent=2) + "\n")
+    Path("dependency-sources.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     print(f"Prepared {len(external)} bundled dependency groups for upstream version checks.")
     return int(failed)
 

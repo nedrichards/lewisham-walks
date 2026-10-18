@@ -1,4 +1,4 @@
-#!@PYTHON@
+#!@PYTHON@ -P
 
 import os
 import signal

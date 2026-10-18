@@ -5,6 +5,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -25,6 +26,35 @@ health = load("dependency-health")
 
 
 class HealthTests(unittest.TestCase):
+    def test_utf8_manifests_work_under_an_ascii_locale(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            manifest = {
+                "name": "Café walks",
+                "runtime": "org.gnome.Platform",
+                "sdk": "org.gnome.Sdk",
+                "runtime-version": "51",
+                "modules": ["sources.json"],
+            }
+            (root / "app.json").write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+            (root / "sources.json").write_text(
+                json.dumps([{"name": "Café dependencies", "sources": []}], ensure_ascii=False),
+                encoding="utf-8",
+            )
+            result = subprocess.run(  # noqa: S603 -- fixed script and isolated local fixture, no network
+                [sys.executable, "-B", str(HERE / "dependency-health.py"), "app.json", "--prepare-only"],
+                cwd=root,
+                env={**os.environ, "LC_ALL": "C", "PYTHONUTF8": "0", "PYTHONCOERCECLOCALE": "0"},
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                timeout=10,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            report = json.loads((root / "dependency-sources.json").read_text(encoding="utf-8"))
+            self.assertEqual(report["name"], "Café walks")
+
     def test_end_of_life_and_remote_failure_are_not_healthy(self):
         for status, output in [(0, "End-of-life: no longer supported"), (1, "Network unavailable")]:
             with self.subTest(status=status), tempfile.TemporaryDirectory() as tmp:
@@ -39,7 +69,8 @@ class HealthTests(unittest.TestCase):
                                 "runtime-version": "51",
                                 "modules": [],
                             }
-                        )
+                        ),
+                        encoding="utf-8",
                     )
                     with (
                         patch("sys.argv", ["dependency-health.py", "app.json"]),
@@ -83,7 +114,7 @@ class ReleaseTests(unittest.TestCase):
         ).strip()
 
     def write(self):
-        Path("app.json").write_text(json.dumps(self.manifest))
+        Path("app.json").write_text(json.dumps(self.manifest), encoding="utf-8")
 
     def prepare(self, tag="v1.2.3", ref="refs/heads/main"):
         return self.release.prepare("app.json", tag, "main", ref, "owner/app")
@@ -92,11 +123,11 @@ class ReleaseTests(unittest.TestCase):
         self.manifest["runtime-version"] = "99"
         self.write()
         result = self.prepare()
-        built = json.loads(Path("release-build.json").read_text())
+        built = json.loads(Path("release-build.json").read_text(encoding="utf-8"))
         self.assertEqual(built["runtime-version"], "51")
         self.assertEqual(built["modules"][-1]["sources"][0]["commit"], self.commit)
         self.assertEqual(result["checkout"], self.commit)
-        self.assertEqual(json.loads(Path("app.json").read_text())["runtime-version"], "99")
+        self.assertEqual(json.loads(Path("app.json").read_text(encoding="utf-8"))["runtime-version"], "99")
 
     def test_pinned_release_requires_exact_tag_commit(self):
         self.manifest["modules"][-1]["sources"][0] = {
@@ -114,14 +145,14 @@ class ReleaseTests(unittest.TestCase):
     def test_cleanup_only_tools_added_without_changing_production_pin(self):
         development = dict(self.manifest)
         development["modules"] = [{"name": "pytest", "cleanup": ["*"], "sources": []}]
-        Path("development.json").write_text(json.dumps(development))
+        Path("development.json").write_text(json.dumps(development), encoding="utf-8")
         self.release.prepare("app.json", "v1.2.3", "main", "refs/heads/main", "owner/app", "development.json")
-        built = json.loads(Path("release-build.json").read_text())
+        built = json.loads(Path("release-build.json").read_text(encoding="utf-8"))
         self.assertEqual(built["modules"][0]["name"], "pytest")
         self.assertEqual(built["modules"][0]["cleanup"], ["*"])
-        self.assertEqual(json.loads(Path("app.json").read_text()), self.manifest)
+        self.assertEqual(json.loads(Path("app.json").read_text(encoding="utf-8")), self.manifest)
         development["runtime-version"] = "99"
-        Path("development.json").write_text(json.dumps(development))
+        Path("development.json").write_text(json.dumps(development), encoding="utf-8")
         with self.assertRaises(ValueError):
             self.release.prepare("app.json", "v1.2.3", "main", "refs/heads/main", "owner/app", "development.json")
 

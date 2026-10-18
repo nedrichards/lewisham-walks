@@ -1,6 +1,5 @@
-from __future__ import annotations
-
 import math
+from collections import deque
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -10,7 +9,7 @@ if TYPE_CHECKING:
     from .models import Discovery
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class MapBounds:
     min_lat: float
     max_lat: float
@@ -98,8 +97,7 @@ def discoveries_for_viewport(
             discovery.id,
         )
 
-    for bucket in buckets.values():
-        bucket.sort(key=rank)
+    ranked_buckets = {cell: deque(sorted(bucket, key=rank)) for cell, bucket in buckets.items()}
     ordered_cells = sorted(
         buckets,
         key=lambda cell: min(_coordinate_distance_m(centre, item.coordinate) for item in buckets[cell]),
@@ -109,9 +107,9 @@ def discoveries_for_viewport(
     while ordered_cells and len(selected) < limit:
         next_cells: list[tuple[int, int]] = []
         for cell in ordered_cells:
-            bucket = buckets[cell]
+            bucket = ranked_buckets[cell]
             while bucket:
-                candidate = bucket.pop(0)
+                candidate = bucket.popleft()
                 if all(_coordinate_distance_m(candidate.coordinate, item.coordinate) >= 25 for item in selected):
                     selected.append(candidate)
                     break

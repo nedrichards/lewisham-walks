@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """Capture the main window from the installed Flatpak for visual review."""
 
-from __future__ import annotations
-
 import os
 import sys
 from pathlib import Path

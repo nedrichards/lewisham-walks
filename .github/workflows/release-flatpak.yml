@@ -27,6 +27,9 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.sha }}
           persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
       - name: Verify tag and prepare exact release source
         id: release
         env:

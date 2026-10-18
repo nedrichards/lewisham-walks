@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import os
 import sys
 import uuid
@@ -8,7 +6,7 @@ from typing import Any
 
 from ..models import Coordinate
 
-LocationCallback = Callable[[Coordinate | None, str | None], None]
+type LocationCallback = Callable[[Coordinate | None, str | None], None]
 
 
 class LocationPortalProvider:

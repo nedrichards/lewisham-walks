@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 GNOME_VECTOR_TILE_URL = "https://tileserver-gl-light.apps.openshift.gnome.org/data/v3/{z}/{x}/{y}.pbf"
 
 

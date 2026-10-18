@@ -85,9 +85,7 @@ class FakeSettings:
 class MainWindowResponsiveTests(unittest.TestCase):
     def setUp(self) -> None:
         Adw.init()
-        self._settings_patcher = mock.patch("lewisham_walks.ui.main_window.Gio.Settings.new", return_value=FakeSettings())
-        self._settings_patcher.start()
-        self.addCleanup(self._settings_patcher.stop)
+        self.enterContext(mock.patch("lewisham_walks.ui.main_window.Gio.Settings.new", return_value=FakeSettings()))
         self.window = MainWindow(None)
         self.addCleanup(self.window.destroy)
 
@@ -182,7 +180,7 @@ class MainWindowResponsiveTests(unittest.TestCase):
 
         self.window._on_map_location_selected(Coordinate(51.462, -0.010))
         self.assertTrue(self.window.split_view.get_show_sidebar())
-        self.assertTrue(self.window.postcode_entry.get_text().startswith("Map point "))
+        self.assertStartsWith(self.window.postcode_entry.get_text(), "Map point ")
 
     def test_map_opens_on_lewisham_and_filter_changes_preserve_the_viewport(self) -> None:
         map_widget = self.window.map_widget
@@ -908,7 +906,7 @@ class PlaqueBrowserResponsiveTests(unittest.TestCase):
         browser._show_discovery(blossom)
         self.assertEqual("A tree", browser.detail_title.get_text())
         self.assertEqual("Blossom walk", browser.kind_value.get_subtitle())
-        self.assertFalse(hasattr(browser, "details_group"))
+        self.assertNotHasAttr(browser, "details_group")
 
         browser.filter_dropdown.set_selected(3)
         self._flush()

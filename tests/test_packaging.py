@@ -34,7 +34,10 @@ class DevelopmentManifestTests(unittest.TestCase):
 
         app_module = manifest["modules"][-1]
         self.assertTrue(app_module["run-tests"])
-        self.assertEqual({"type": "dir", "path": "."}, app_module["sources"][0])
+        source = app_module["sources"][0]
+        self.assertEqual("dir", source["type"])
+        self.assertEqual(".", source["path"])
+        self.assertTrue({".flatpak-builder*", "flatpak-repo", "target"}.issubset(source["skip"]))
 
     def test_production_uses_public_pinned_source_and_minimal_permissions(self):
         manifest = json.loads((REPOSITORY_ROOT / f"{APP_ID}.json").read_text())
@@ -50,8 +53,12 @@ class DevelopmentManifestTests(unittest.TestCase):
     def test_sdk_wrapper_uses_development_manifest_dependencies(self):
         wrapper = (REPOSITORY_ROOT / "scripts" / "test_in_gnome_sdk.sh").read_text()
 
-        self.assertIn("com.nedrichards.lewishamwalks.Devel.json", wrapper)
-        self.assertIn("--stop-at=lewisham-walks", wrapper)
+        self.assertIn('exec "$root/scripts/local-flatpak.sh" sdk-test "$@"', wrapper)
+        workflow = (REPOSITORY_ROOT / "scripts" / "local-flatpak.sh").read_text()
+        self.assertIn("com.nedrichards.lewishamwalks.Devel.json", workflow)
+        self.assertIn("--stop-at=lewisham-walks", workflow)
+        self.assertIn("--delete-build-dirs", workflow)
+        self.assertIn('staging="$state/staging"', workflow)
         self.assertNotIn("HOST_SITE_PACKAGES", wrapper)
 
     def test_full_colour_and_symbolic_application_icons_are_packaged(self):
@@ -70,7 +77,7 @@ class DevelopmentManifestTests(unittest.TestCase):
             with self.subTest(manifest=manifest["id"]):
                 module = next(item for item in manifest["modules"] if item["name"] == "libshumate")
                 source = module["sources"][0]
-                self.assertTrue(source["url"].endswith("/libshumate-1.7.0.tar.xz"))
+                self.assertEndsWith(source["url"], "/libshumate-1.7.0.tar.xz")
                 self.assertEqual(
                     "3896cc4b6a7bf83141c27df23ce48cdd68467603bc6b764960307cdcbbef80e5",
                     source["sha256"],

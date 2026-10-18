@@ -103,7 +103,38 @@
             "sources": [
                 {
                     "type": "dir",
-                    "path": "."
+                    "path": ".",
+                    "skip": [
+                      ".git",
+                      ".flatpak-builder*",
+                      "flatpak-repo",
+                      "build",
+                      "build-dir",
+                      "build-flatpak*",
+                      "build-gnome51",
+                      "build-sdk-meson",
+                      "build-sdk-tests",
+                      "build-ui-audit",
+                      "_build*",
+                      "flatpak-build*",
+                      "repo",
+                      "target",
+                      ".venv",
+                      "venv",
+                      "__pycache__",
+                      ".pytest_cache",
+                      ".ruff_cache",
+                      ".agents",
+                      ".codex",
+                      ".aws",
+                      ".idea",
+                      ".vscode",
+                      ".env",
+                      ".env.*",
+                      "*.flatpak",
+                      "*.syscap",
+                      "*.log"
+                    ]
                 }
             ]
         }

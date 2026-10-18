@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import math
 import threading
 import time
@@ -7,7 +5,7 @@ from typing import ClassVar
 
 import requests
 
-from ..models import Coordinate, RouteRequest, RouteStep
+from ..models import Coordinate, RouteRequest, RouteStep, RoutingResult
 from ..planner import straight_line_route
 
 
@@ -25,7 +23,7 @@ class OpenStreetMapRoutingProvider:
     def __init__(self, session: requests.Session | None = None) -> None:
         self._session = session or requests.Session()
 
-    def route(self, waypoints: list[Coordinate], _request: RouteRequest) -> tuple[list[Coordinate], list[RouteStep], float, float]:
+    def route(self, waypoints: list[Coordinate], _request: RouteRequest) -> RoutingResult:
         if len(waypoints) < 2:
             return list(waypoints), [], 0.0, 0.0
         coordinates = ";".join(f"{point.lon:.6f},{point.lat:.6f}" for point in waypoints)
@@ -47,32 +45,7 @@ class OpenStreetMapRoutingProvider:
         except (requests.RequestException, ValueError) as error:
             raise RoutingError(f"Walking directions are unavailable: {error}") from error
         try:
-            routes = payload.get("routes") or []
-            if payload.get("code") != "Ok" or not routes:
-                raise RoutingError(str(payload.get("message") or "No walking route was returned."))
-
-            route = routes[0]
-            raw_geometry = route.get("geometry", {}).get("coordinates", [])
-            geometry = [Coordinate(lat=float(lat), lon=float(lon)) for lon, lat in raw_geometry]
-            steps = [
-                RouteStep(
-                    instruction=_osrm_instruction(step),
-                    distance_m=float(step.get("distance", 0)),
-                    duration_s=float(step.get("duration", 0)),
-                    leg_index=leg_index,
-                )
-                for leg_index, leg in enumerate(route.get("legs", []))
-                for step in leg.get("steps", [])
-            ]
-            distance = float(route["distance"])
-            duration = float(route["duration"])
-            if len(geometry) < 2 or not all(
-                math.isfinite(point.lat) and math.isfinite(point.lon)
-                and -90 <= point.lat <= 90 and -180 <= point.lon <= 180
-                for point in geometry
-            ) or not all(math.isfinite(value) and value >= 0 for value in (distance, duration, *(step.distance_m for step in steps), *(step.duration_s for step in steps))):
-                raise ValueError("Invalid walking route geometry or totals.")
-            return geometry, steps, distance, duration
+            return _parse_osrm_route(payload)
         except (AttributeError, KeyError, TypeError, ValueError) as error:
             raise RoutingError("The routing service returned an invalid walking route.") from error
 
@@ -84,13 +57,43 @@ class LocalFallbackRoutingProvider:
         self.primary = primary or OpenStreetMapRoutingProvider()
         self.used_fallback = False
 
-    def route(self, waypoints: list[Coordinate], request: RouteRequest) -> tuple[list[Coordinate], list[RouteStep], float, float]:
+    def route(self, waypoints: list[Coordinate], request: RouteRequest) -> RoutingResult:
         self.used_fallback = False
         try:
             return self.primary.route(waypoints, request)
         except RoutingError:
             self.used_fallback = True
             return straight_line_route(waypoints, request)
+
+
+def _parse_osrm_route(payload: dict) -> RoutingResult:
+    """Decode and validate service data before exposing it to the planner."""
+    routes = payload.get("routes") or []
+    if payload.get("code") != "Ok" or not routes:
+        raise RoutingError(str(payload.get("message") or "No walking route was returned."))
+
+    route = routes[0]
+    raw_geometry = route.get("geometry", {}).get("coordinates", [])
+    geometry = [Coordinate(lat=float(lat), lon=float(lon)) for lon, lat in raw_geometry]
+    steps = [
+        RouteStep(
+            instruction=_osrm_instruction(step),
+            distance_m=float(step.get("distance", 0)),
+            duration_s=float(step.get("duration", 0)),
+            leg_index=leg_index,
+        )
+        for leg_index, leg in enumerate(route.get("legs", []))
+        for step in leg.get("steps", [])
+    ]
+    distance = float(route["distance"])
+    duration = float(route["duration"])
+    if len(geometry) < 2 or not all(
+        math.isfinite(point.lat) and math.isfinite(point.lon)
+        and -90 <= point.lat <= 90 and -180 <= point.lon <= 180
+        for point in geometry
+    ) or not all(math.isfinite(value) and value >= 0 for value in (distance, duration, *(step.distance_m for step in steps), *(step.duration_s for step in steps))):
+        raise ValueError("Invalid walking route geometry or totals.")
+    return geometry, steps, distance, duration
 
 
 def _osrm_instruction(step: dict) -> str:

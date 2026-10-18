@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import json
 import math
 from collections.abc import Callable
@@ -35,8 +33,8 @@ from ..models import Coordinate, Discovery, DiscoveryKind, RoutePlan, RouteVisit
 from . import icons
 from .layout import MAP_COMPACT_MIN_HEIGHT, MAP_COMPACT_MIN_WIDTH
 
-DiscoveryCallback = Callable[[Discovery], None]
-VisitCallback = Callable[[RouteVisit], None]
+type DiscoveryCallback = Callable[[Discovery], None]
+type VisitCallback = Callable[[RouteVisit], None]
 POI_SELECT_CURSOR = "default"
 
 

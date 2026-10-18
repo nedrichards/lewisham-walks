@@ -1,6 +1,7 @@
 import importlib.util
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "import_openplaques.py"
 SPEC = importlib.util.spec_from_file_location("import_openplaques", SCRIPT_PATH)
@@ -11,6 +12,25 @@ SPEC.loader.exec_module(import_openplaques)
 
 
 class ImportOpenPlaquesTests(unittest.TestCase):
+    def test_missing_optional_corrections_are_empty(self):
+        empty = {"exclude": [], "records": {}}
+        self.assertEqual(empty, import_openplaques.load_corrections(None))
+        with patch.object(Path, "read_text", side_effect=FileNotFoundError):
+            self.assertEqual(empty, import_openplaques.load_corrections(Path("missing.json")))
+
+    def test_unreadable_corrections_are_reported(self):
+        for error in (PermissionError("Cannot read corrections"), OSError("Storage failure")):
+            with (
+                self.subTest(error=type(error).__name__),
+                patch.object(Path, "read_text", side_effect=error),
+                self.assertRaises(type(error)),
+            ):
+                import_openplaques.load_corrections(Path("corrections.json"))
+
+    def test_invalid_corrections_are_reported(self):
+        with patch.object(Path, "read_text", return_value="invalid JSON"), self.assertRaises(ValueError):
+            import_openplaques.load_corrections(Path("corrections.json"))
+
     def test_filters_records_by_boundary(self):
         dump = {
             "features": [

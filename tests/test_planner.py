@@ -12,7 +12,7 @@ from lewisham_walks.models import (
     RouteRequest,
     StopPreference,
 )
-from lewisham_walks.planner import MAX_BLOSSOM_ROUTE_POINTS, RoutePlanner
+from lewisham_walks.planner import MAX_BLOSSOM_ROUTE_POINTS, RoutePlanner, straight_line_route
 
 
 class FakeAmenityProvider:
@@ -35,6 +35,34 @@ class RecordingRoutingProvider:
 
 
 class PlannerTests(unittest.TestCase):
+    def test_straight_line_route_reuses_each_leg_distance(self):
+        waypoints = [Coordinate(51.46, -0.01), Coordinate(51.47, -0.02), Coordinate(51.48, -0.03)]
+        request = RouteRequest(waypoints[0], 60, walking_speed_kmh=3.6)
+        with mock.patch("lewisham_walks.planner.haversine_m", side_effect=[100.0, 250.0]) as distance:
+            geometry, steps, total_distance, walking_seconds = straight_line_route(waypoints, request)
+        self.assertIs(geometry, waypoints)
+        self.assertEqual(distance.call_args_list, [mock.call(waypoints[0], waypoints[1]), mock.call(waypoints[1], waypoints[2])])
+        self.assertEqual([step.distance_m for step in steps], [100.0, 250.0])
+        self.assertEqual([step.duration_s for step in steps], [100.0, 250.0])
+        self.assertEqual([step.leg_index for step in steps], [0, 1])
+        self.assertEqual([step.instruction for step in steps], ["Walk to stop 1", "Walk to stop 2"])
+        self.assertEqual(total_distance, 350.0)
+        self.assertEqual(walking_seconds, 350.0)
+
+    def test_straight_line_route_with_no_legs(self):
+        request = RouteRequest(Coordinate(51.46, -0.01), 60)
+        for waypoints in ([], [request.start]):
+            with self.subTest(waypoints=waypoints):
+                self.assertEqual(straight_line_route(waypoints, request), (waypoints, [], 0, 0))
+
+    def test_seen_history_duplicates_preserve_fallback_after_every_story_is_seen(self):
+        planner = RoutePlanner(self.discoveries)
+        request = RouteRequest(Coordinate(51.459, -0.011), 60, seen_story_ids=("a", "b", "a", "c", "unknown"))
+        plan = planner.plan(request)
+        fresh = planner.plan(RouteRequest(request.start, request.duration_minutes))
+        self.assertTrue(plan.discoveries)
+        self.assertEqual(plan.discoveries, fresh.discoveries)
+
     def test_local_route_and_gpx_preserve_approximation_warning(self):
         plan = RoutePlanner(self.discoveries).plan(RouteRequest(Coordinate(51.46, -0.01), 60))
         self.assertTrue(any("straight lines" in warning for warning in plan.warnings))

@@ -1,9 +1,7 @@
-from __future__ import annotations
-
 import threading
 from dataclasses import replace
 from pathlib import Path
-from typing import ClassVar
+from typing import ClassVar, TypedDict
 
 import gi
 
@@ -59,6 +57,21 @@ from .layout import (
 )
 from .map_widget import create_map_widget
 from .preferences_window import PreferencesDialog
+
+
+class WalkInputs(TypedDict):
+    postcode: str | None
+    end_postcode: str
+    start_coordinate: Coordinate | None
+    end_coordinate: Coordinate | None
+    duration_minutes: int
+    stop_preference: StopPreference
+    walking_speed_kmh: float
+    discoveries: list[Discovery]
+    route_mode: RouteMode
+    route_theme: RouteTheme
+    seen_story_ids: tuple[str, ...]
+    variation_seed: int
 
 
 class MainWindow(Adw.ApplicationWindow):
@@ -845,7 +858,7 @@ class MainWindow(Adw.ApplicationWindow):
             start_postcode = None
             if self._picked_start is None:
                 start_postcode = normalise_postcode(self.postcode_entry.get_text())
-            inputs = {
+            inputs: WalkInputs = {
                 "postcode": start_postcode,
                 "end_postcode": self.end_postcode_entry.get_text(),
                 "start_coordinate": self._picked_start,
@@ -872,7 +885,7 @@ class MainWindow(Adw.ApplicationWindow):
         )
         thread.start()
 
-    def _generate_walk_worker(self, generation_id: int, inputs: dict) -> None:
+    def _generate_walk_worker(self, generation_id: int, inputs: WalkInputs) -> None:
         try:
             geocoder = PostcodesIoGeocoder()
             start = inputs["start_coordinate"] or geocoder.lookup_postcode(inputs["postcode"])
@@ -968,7 +981,7 @@ class MainWindow(Adw.ApplicationWindow):
             self.progress_spinner.stop()
             self.progress_label.set_text("")
 
-    def _lookup_end_location(self, geocoder: PostcodesIoGeocoder, inputs: dict) -> Coordinate | None:
+    def _lookup_end_location(self, geocoder: PostcodesIoGeocoder, inputs: WalkInputs) -> Coordinate | None:
         if inputs["stop_preference"] in (StopPreference.CAFE_END, StopPreference.PUB_END):
             return None
         if inputs["end_coordinate"] is not None:

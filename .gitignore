@@ -34,3 +34,6 @@ __pycache__/
 /perf.data*
 /core
 /core.*
+
+# Durable local Flatpak update repository (keep when cleaning build state)
+/flatpak-repo/
