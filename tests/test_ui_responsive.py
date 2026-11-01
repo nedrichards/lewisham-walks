@@ -108,7 +108,7 @@ class MainWindowResponsiveTests(unittest.TestCase):
         generation_id, inputs = thread.call_args.kwargs["args"]
         with (
             mock.patch("lewisham_walks.providers.routing.requests.Session") as session,
-            mock.patch("lewisham_walks.providers.routing.time.sleep"),
+            mock.patch("lewisham_walks.providers.routing.time", mock.Mock(wraps=time, sleep=mock.Mock())),
         ):
             session.return_value.get.side_effect = requests.ConnectionError("offline")
             self.window._generate_walk_worker(generation_id, inputs)

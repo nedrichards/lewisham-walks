@@ -1,3 +1,4 @@
+import time
 import unittest
 from unittest import mock
 
@@ -54,7 +55,7 @@ class OpenStreetMapRoutingTests(unittest.TestCase):
         session.get.return_value.json.return_value = payload
         routing = LocalFallbackRoutingProvider(OpenStreetMapRoutingProvider(session))
         waypoints = [Coordinate(51.46, -0.01), Coordinate(51.47, -0.02)]
-        with mock.patch("lewisham_walks.providers.routing.time.sleep"):
+        with mock.patch("lewisham_walks.providers.routing.time", mock.Mock(wraps=time, sleep=mock.Mock())):
             geometry, steps, distance, duration = routing.route(waypoints, RouteRequest(waypoints[0], 60))
         self.assertTrue(routing.used_fallback)
         self.assertEqual(geometry, waypoints)
@@ -71,7 +72,7 @@ class OpenStreetMapRoutingTests(unittest.TestCase):
         cafe = AmenityStop("cafe", "Cafe", "cafe", Coordinate(51.461, -0.01))
         amenities = mock.Mock()
         amenities.search.return_value = [cafe]
-        with mock.patch("lewisham_walks.providers.routing.time.sleep"):
+        with mock.patch("lewisham_walks.providers.routing.time", mock.Mock(wraps=time, sleep=mock.Mock())):
             plan = RoutePlanner([], routing, amenities).plan(
                 RouteRequest(start, 60, stop_preference=StopPreference.CAFE_END)
             )
@@ -91,7 +92,7 @@ class OpenStreetMapRoutingTests(unittest.TestCase):
         invalid_step["routes"][0]["legs"][0]["steps"][0]["duration"] = float("nan")
         payloads.append(invalid_step)
         for payload in payloads:
-            with self.subTest(payload=payload), mock.patch("lewisham_walks.providers.routing.time.sleep"):
+            with self.subTest(payload=payload), mock.patch("lewisham_walks.providers.routing.time", mock.Mock(wraps=time, sleep=mock.Mock())):
                 session = mock.Mock()
                 session.get.return_value.json.return_value = payload
                 with self.assertRaises(RoutingError):
@@ -125,15 +126,16 @@ class OpenStreetMapRoutingTests(unittest.TestCase):
 
         with (
             mock.patch(
-                "lewisham_walks.providers.routing.time.monotonic",
-                side_effect=[100.0, 100.0, 100.25, 101.0],
-            ),
-            mock.patch("lewisham_walks.providers.routing.time.sleep") as sleep,
+                "lewisham_walks.providers.routing.time",
+                mock.Mock(wraps=time, monotonic=mock.Mock(side_effect=[100.0, 100.0, 100.25, 101.0]), sleep=mock.Mock()),
+            ) as clock,
         ):
             OpenStreetMapRoutingProvider(FakeSession()).route([start, end], request)
             OpenStreetMapRoutingProvider(FakeSession()).route([start, end], request)
+            self.assertEqual(time.monotonic.__module__, "time")
+            self.assertEqual(time.sleep.__module__, "time")
 
-        sleep.assert_called_once_with(0.75)
+        clock.sleep.assert_called_once_with(0.75)
 
 
 if __name__ == "__main__":

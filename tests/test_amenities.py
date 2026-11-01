@@ -1,3 +1,4 @@
+import time
 import unittest
 from unittest import mock
 
@@ -36,8 +37,9 @@ class FakeSession:
 
 class OverpassAmenityProviderTests(unittest.TestCase):
     def setUp(self):
-        patcher = mock.patch("lewisham_walks.providers.amenities.time.sleep")
-        self.sleep = patcher.start()
+        patcher = mock.patch("lewisham_walks.providers.amenities.time", mock.Mock(wraps=time, sleep=mock.Mock()))
+        self.clock = patcher.start()
+        self.sleep = self.clock.sleep
         self.addCleanup(patcher.stop)
 
     def test_search_uses_global_overpass_with_application_identity(self):
@@ -57,10 +59,12 @@ class OverpassAmenityProviderTests(unittest.TestCase):
         self.addCleanup(setattr, OverpassAmenityProvider, "_last_request_started", previous)
         OverpassAmenityProvider._last_request_started = 0
         payload = [{"osm_type": "node", "osm_id": 1, "lat": "51.45", "lon": "0", "type": "cafe"}]
-        with mock.patch("lewisham_walks.providers.amenities.time.monotonic", side_effect=[100, 100, 100.25, 101]):
-            for _ in range(2):
-                OverpassAmenityProvider(FakeSession({}, payload)).search(Coordinate(51.45, 0), "cafe")
+        self.clock.monotonic = mock.Mock(side_effect=[100, 100, 100.25, 101])
+        for _ in range(2):
+            OverpassAmenityProvider(FakeSession({}, payload)).search(Coordinate(51.45, 0), "cafe")
         self.sleep.assert_called_once_with(0.75)
+        self.assertEqual(time.monotonic.__module__, "time")
+        self.assertEqual(time.sleep.__module__, "time")
 
     def test_query_includes_nodes_ways_and_relations(self):
         session = FakeSession(

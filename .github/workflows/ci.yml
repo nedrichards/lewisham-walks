@@ -28,7 +28,7 @@ jobs:
       - name: Lint
         run: ruff check .
       - name: Check selected preview rules
-        run: ruff check --preview --extend-select PLW1514,RUF056 .
+        run: ruff check --preview --extend-select PLW1514,RUF056,shared-clock-mock .
       - name: Compile Python
         run: python3 -m compileall -q src scripts tests
       - name: Run network-independent tests

@@ -14,7 +14,7 @@ Before opening a pull request, run:
 
 ```sh
 ruff check .
-ruff check --preview --extend-select PLW1514,RUF056 .
+ruff check --preview --extend-select PLW1514,RUF056,shared-clock-mock .
 python3 -m compileall -q src scripts tests
 PYTHONPATH=src python3 -m unittest discover -s tests
 meson setup --reconfigure build-dir

@@ -8,7 +8,7 @@ Both commands are required locally and in source CI:
 
 ```sh
 ruff check .
-ruff check --preview --extend-select PLW1514,RUF056 .
+ruff check --preview --extend-select PLW1514,RUF056,shared-clock-mock .
 ```
 
 `explicit-preview-rules = true` prevents the broad stable rule families from
@@ -71,3 +71,11 @@ Do not enable `ALL`. Broad pytest conversion, private-member restrictions,
 docstring requirements and complexity thresholds are poorly matched to the
 unittest suite and GTK callback conventions. Revisit individual rules when they
 identify a concrete correctness or maintenance improvement.
+
+## Ruff 0.17.3 review
+
+The new `shared-clock-mock` preview check is enabled explicitly. Routing and
+amenity rate-limit tests replace each provider module’s clock reference, so
+mocked sleeps and monotonic readings cannot affect other workers. Existing
+spacing and offline-fallback assertions are retained, with clock isolation
+assertions. The one-shot regex compilation preview check has no findings.
