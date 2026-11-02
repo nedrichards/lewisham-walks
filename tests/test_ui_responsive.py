@@ -334,9 +334,18 @@ class MainWindowResponsiveTests(unittest.TestCase):
     def test_native_breakpoint_enters_compact_mode_on_initial_narrow_allocation(self) -> None:
         self.window.set_default_size(390, 780)
         self.window.present()
-        self._flush()
+        # The first allocation arrives on a frame, which need not be pending
+        # immediately after present() on a headless CI display.
+        deadline = time.monotonic() + 3.0
+        while self.window.get_current_breakpoint() is not self.window.compact_breakpoint and time.monotonic() < deadline:
+            self._flush()
+            time.sleep(0.005)
 
-        self.assertIs(self.window.get_current_breakpoint(), self.window.compact_breakpoint)
+        self.assertIs(
+            self.window.get_current_breakpoint(),
+            self.window.compact_breakpoint,
+            f"Compact layout did not settle: allocated {self.window.get_width()}x{self.window.get_height()}",
+        )
         self.assertTrue(self.window.split_view.get_collapsed())
         self.assertFalse(self.window.split_view.get_pin_sidebar())
         self.assertFalse(self.window.split_view.get_show_sidebar())
