@@ -1,8 +1,9 @@
 # Ruff policy
 
-Use the exact Ruff version in `requirements-dev.txt`. `required-version` in
-`pyproject.toml` rejects older or newer executables so local checks agree with CI.
-The supported Python target is 3.14, matching the GNOME 51 SDK.
+Use the exact Ruff version in `requirements-dev.txt` for local checks and CI.
+`required-version` in `pyproject.toml` sets the oldest supported version while
+allowing Dependabot's newer pin to pass CI without a second, manually updated
+version. The supported Python target is 3.14, matching the GNOME 51 SDK.
 
 Both commands are required locally and in source CI:
 
