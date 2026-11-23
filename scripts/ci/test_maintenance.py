@@ -26,6 +26,82 @@ health = load("dependency-health")
 
 
 class HealthTests(unittest.TestCase):
+    def test_checked_dependency_updates_touch_only_allowlisted_fields_in_both_manifests(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = {
+                "type": "archive",
+                "url": "https://example.invalid/old.tar.xz",
+                "sha256": "0" * 64,
+                "x-checker-data": {"type": "gnome", "name": "example"},
+                "strip-components": 1,
+            }
+            manifests = []
+            for name in ("devel.json", "production.json"):
+                manifest = {
+                    "runtime-version": "51",
+                    "modules": [
+                        {"name": "dependency", "sources": [dict(source)]},
+                        {"name": "app", "sources": [{"type": "git", "commit": "a" * 40}]},
+                    ],
+                }
+                path = root / name
+                path.write_text(json.dumps(manifest), encoding="utf-8")
+                manifests.append(path)
+            checked = {
+                "modules": [
+                    {
+                        "sources": [
+                            {
+                                **source,
+                                "url": "https://example.invalid/new.tar.xz",
+                                "sha256": "1" * 64,
+                            }
+                        ]
+                    }
+                ]
+            }
+
+            health.apply_updates(manifests, checked)
+
+            for path in manifests:
+                updated = json.loads(path.read_text(encoding="utf-8"))
+                dependency = updated["modules"][0]["sources"][0]
+                self.assertEqual(dependency["url"], "https://example.invalid/new.tar.xz")
+                self.assertEqual(dependency["sha256"], "1" * 64)
+                self.assertEqual(dependency["strip-components"], 1)
+                self.assertEqual(updated["modules"][1]["sources"][0]["commit"], "a" * 40)
+                self.assertEqual(updated["runtime-version"], "51")
+
+            once = [path.read_text(encoding="utf-8") for path in manifests]
+            health.apply_updates(manifests, checked)
+            self.assertEqual(once, [path.read_text(encoding="utf-8") for path in manifests])
+
+    def test_checked_dependency_updates_reject_missing_or_conflicting_results_without_writes(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "manifest.json"
+            source = {
+                "type": "file",
+                "url": "https://example.invalid/old.whl",
+                "sha256": "0" * 64,
+                "x-checker-data": {"type": "pypi", "name": "example"},
+            }
+            path.write_text(json.dumps({"modules": [{"sources": [source]}]}), encoding="utf-8")
+            original = path.read_text(encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "Missing checker result"):
+                health.apply_updates([path], {"modules": []})
+            with self.assertRaisesRegex(ValueError, "Conflicting checker results"):
+                health.apply_updates(
+                    [path],
+                    {
+                        "modules": [
+                            {"sources": [{**source, "url": "https://example.invalid/one.whl"}]},
+                            {"sources": [{**source, "url": "https://example.invalid/two.whl"}]},
+                        ]
+                    },
+                )
+            self.assertEqual(path.read_text(encoding="utf-8"), original)
+
     def test_utf8_manifests_work_under_an_ascii_locale(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
