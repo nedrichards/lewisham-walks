@@ -77,9 +77,9 @@ class DevelopmentManifestTests(unittest.TestCase):
             with self.subTest(manifest=manifest["id"]):
                 module = next(item for item in manifest["modules"] if item["name"] == "libshumate")
                 source = module["sources"][0]
-                self.assertEndsWith(source["url"], "/libshumate-1.7.0.tar.xz")
+                self.assertEndsWith(source["url"], "/libshumate-1.7.1.tar.xz")
                 self.assertEqual(
-                    "3896cc4b6a7bf83141c27df23ce48cdd68467603bc6b764960307cdcbbef80e5",
+                    "5316878f7d6a2124d8d53bdd3a34b3656f1c2337b2082aa59ed667969c0bd8f4",
                     source["sha256"],
                 )
 
